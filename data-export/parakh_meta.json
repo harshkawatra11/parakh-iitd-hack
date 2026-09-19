@@ -1,0 +1,22 @@
+{
+  "old_boys": [
+    "maharshi dayanand sarswati university ajmer",
+    "iisc",
+    "bits pilani",
+    "iit kharagpur",
+    "nit warangal"
+  ],
+  "min_tenure": {
+    "0.0": 0.0,
+    "1.0": 1.0,
+    "2.0": 1.7,
+    "3.0": 3.7,
+    "4.0": 6.085166666666666,
+    "5.0": 9.0,
+    "6.0": 9.0,
+    "7.0": 13.756,
+    "8.0": 13.0
+  },
+  "recall_vault": 68,
+  "recall_full": 95
+}
