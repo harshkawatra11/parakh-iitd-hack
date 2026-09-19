@@ -1,6 +1,7 @@
 # The Corporate Heist — Solution Documentation
-**Team name:** IdeaForge  **Unstop team ID:** <FILL IN BEFORE SUBMITTING>
-**Members:** <FILL IN BEFORE SUBMITTING>
+**Team name:** IdeaForge
+**Member:** Harsh Kawatra
+**College:** Delhi Technological University (DTU)
 
 ## 1. Summary
 We treat the Vault as a different population from the Archive, not as more of the same.
@@ -26,10 +27,10 @@ Compensation is the worst: `13.9 LPA`, `13.9 lpa`, `Rs13,90,000`, `1390000`, `13
 `INR 13.9 lakh`, `7.53 Cr` and **`$22,369`** — we normalise everything to INR lakh p.a.
 and convert USD at 83 INR/USD. career_path uses three separators (`>`, `->`, `|`, plus a
 unicode arrow) and two duration syntaxes (`[23 mo]`, `(1.2 yrs)`). institute collapses 730
-raw spellings to ~314 schools (`IIT Delhi` / `I.I.T. Delhi` / `IIT-D` / `IITD` /
+raw spellings to roughly 314 schools (`IIT Delhi` / `I.I.T. Delhi` / `IIT-D` / `IITD` /
 `Indian Institute of Technology Delhi`); current_city merges Madras→Chennai,
 Gurgaon→Gurugram. kpi_met has ten spellings of a boolean. public_code_contributions
-(test-only) appears as `12`, `~3`, `10+`, `3 PRs`, `3 merged PRs`, `not tracked` — we
+(test-only) appears as `12`, `10+`, `3 PRs`, `3 merged PRs`, shorthand like "roughly 3", or `not tracked` — we
 parse the first integer and leave `not tracked`/blank as missing, never as zero.
 
 ## 3. What drives a great hire — our findings
@@ -40,7 +41,7 @@ P(top 5%) 0.081 vs 0.033. Awards lift the mean to 53.8 (Spot Award 56.9). Senior
 inverted-U: candidates at individual-contributor levels average 51.3–51.4 while
 Lead/Principal/Director/VP applicants average 45.6–46.3. trainings_last_year (+0.003) and
 training_hours (+0.017) are noise. The recruiter_note field is 1,090 concatenations of
-~25 fixed sentences; we count positive atoms ("owned production incidents",
+roughly 25 fixed sentences; we count positive atoms ("owned production incidents",
 "shipped a feature used by 1M+ users") against negative ones ("reference check was
 lukewarm", "missed two sprint commitments") rather than embedding the text.
 
@@ -50,7 +51,7 @@ The debrief describes four changes and all four are visible in the data.
 times in train.csv or dev.csv** — 90/120/150/180-day and 3–6-month values exist only in
 the Vault. Excluded.
 (ii) **Title inflation.** We learn, per seniority level, the minimum tenure ever observed
-in the Archive (e.g. Director/VP levels never appear below ~13 years of combined
+in the Archive (e.g. Director/VP levels never appear below roughly 13 years of combined
 experience-or-time-since-graduation). The Vault contains **149 profiles** that violate
 their level's learned floor. Excluded.
 (iii) **Public code contributions.** Test-only. Median 6, p90 26, max 408; uncorrelated
@@ -91,7 +92,7 @@ best-scoring entry. Example: CH-0R5RQA "Advani, Vaagdevi" / `61047 27758` and CH
 "Vaagdevi Advani" / `+91 6104727758` are one IIT Delhi 2013 DevOps applicant.
 
 ## 6. Model and selection procedure
-LightGBM on the de-fabricated Archive (19,439 rows), ~40 engineered features, bagged over
+LightGBM on the de-fabricated Archive (19,439 rows), roughly 40 engineered features, bagged over
 seeds 42/202/777. Two heads: an L2 regressor on post_hire_score and a binary classifier on
 "is in the top 5%". Their percentile ranks are averaged 50/50. The blended rank is
 z-scored, the Vault bonuses (§4) are added, hard exclusions (§5) are set to −infinity,
@@ -104,9 +105,9 @@ recall@150 printed at run time as a build-time assertion, not a claim.
   1.3–2.2 on thin counts and incoherent (`pytorch` ranked top for DevOps/SRE, `vuejs`
   second). Only the *count* of skills survived into the feature set.
 - **Sentence-transformer embeddings of recruiter_note.** The field is a closed vocabulary
-  of ~25 atoms; keyword counting is exact and costs nothing, embeddings cost real runtime
+  of roughly 25 atoms; keyword counting is exact and costs nothing, embeddings cost real runtime
   budget for no measurable gain.
-- **Target-encoding the institute for the Vault.** Lifts Ledger recall by ~27 points, but
+- **Target-encoding the institute for the Vault.** Lifts Ledger recall by about 27 points, but
   it is the deprecated bias in disguise. Rejected on the debrief's evidence, not on taste.
 - **Treating `not tracked` public contributions as 0.** Would penalise over a thousand
   candidates for a recruiter's data-entry habit rather than their actual record.
@@ -129,6 +130,6 @@ recall@150 printed at run time as a build-time assertion, not a claim.
 ## 9. How to run
     python main.py
 `train.csv`, `dev.csv`, `dev_winners.csv`, `test.csv` in the working directory; writes
-`submission.csv` there. Python 3.11, CPU only. **Runtime ~60 s** (limit 5 min, i.e. 300 s).
+`submission.csv` there. Python 3.11, CPU only. **Runtime about 60 s** (limit 5 min, i.e. 300 s).
 Seeds: `SEED = 42`, model seeds 42/202/777, `PYTHONHASHSEED=42`. Two consecutive runs
 produce byte-identical output (verified: identical MD5 hash).

@@ -71,7 +71,7 @@ A static, data-driven audit trail for the shortlist: the debrief annotated line 
 an exclusion funnel, per-candidate score decomposition, and the Ledger validation curve.
 Built with Next.js 15, shadcn/ui, Framer Motion, GSAP and Chart.js. See `web/README.md`.
 
-Live: _link added after deploy_
+Live: **https://parakh-ideaforge.vercel.app**
 
 ---
 Built for **Innov8 4.0 · Eightfold.ai × ARIES, IIT Delhi** by **Team IdeaForge**.
