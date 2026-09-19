@@ -1,0 +1,17 @@
+node_modules/
+web/.next/
+web/out/
+build/
+__pycache__/
+*.pyc
+train.csv
+dev.csv
+test.csv
+dev_winners.csv
+sample_submission.csv
+parakh_run/
+.env*
+.vercel
+data-export/parakh_export.json
+IdeaForge.zip
+*.zip
