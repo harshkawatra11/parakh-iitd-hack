@@ -2,6 +2,8 @@
 **Team name:** IdeaForge
 **Member:** Harsh Kawatra
 **College:** Delhi Technological University (DTU)
+**GitHub repository:** https://github.com/harshkawatra11/parakh-iitd-hack
+**Live review console (Parakh):** https://parakh-ideaforge.vercel.app
 
 ## 1. Summary
 We treat the Vault as a different population from the Archive, not as more of the same.
