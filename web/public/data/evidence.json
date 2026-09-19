@@ -1,0 +1,1 @@
+{"correlations": [{"feature": "technical_assessment", "spearman": 0.274}, {"feature": "kpi_met", "spearman": 0.145}, {"feature": "age", "spearman": -0.073}, {"feature": "graduation_year", "spearman": 0.134}, {"feature": "num_employers", "spearman": -0.056}], "kpiEffect": {"met": 52.879, "notMet": 46.515}, "note": "Computed from train.csv (the Archive), n=20,000."}

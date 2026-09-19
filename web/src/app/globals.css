@@ -1,0 +1,115 @@
+@import "tailwindcss";
+
+:root {
+  --paper: #FBFAF7;
+  --paper-2: #F3F1EC;
+  --ink: #14130F;
+  --ink-2: #4A4741;
+  --ink-3: #7A766C;
+  --rule: #DCD8CF;
+  --rule-strong: #C7C2B5;
+  --seal: #B3122B;
+  --seal-tint: #F5E4E4;
+  --olive: #6B6A4E;
+  --verdigris: #2F6B5E;
+  --verdigris-tint: #E3ECE9;
+  --ochre: #A9781F;
+  --ochre-tint: #F3E9D5;
+
+  --font-serif: "Instrument Serif", Georgia, serif;
+  --font-sans: "Inter Tight", -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+:root[data-theme="dark"] {
+  --paper: #100F0D;
+  --paper-2: #17150F;
+  --ink: #EDEAE3;
+  --ink-2: #C4C0B5;
+  --ink-3: #8B877D;
+  --rule: #2C2A24;
+  --rule-strong: #3D3A32;
+  --seal: #E23A50;
+  --seal-tint: #2E1417;
+  --olive: #9C9A73;
+  --verdigris: #5FA595;
+  --verdigris-tint: #12211D;
+  --ochre: #D6A23F;
+  --ochre-tint: #2A2011;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #100F0D;
+    --paper-2: #17150F;
+    --ink: #EDEAE3;
+    --ink-2: #C4C0B5;
+    --ink-3: #8B877D;
+    --rule: #2C2A24;
+    --rule-strong: #3D3A32;
+    --seal: #E23A50;
+    --seal-tint: #2E1417;
+    --olive: #9C9A73;
+    --verdigris: #5FA595;
+    --verdigris-tint: #12211D;
+    --ochre: #D6A23F;
+    --ochre-tint: #2A2011;
+  }
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-seal: var(--seal);
+  --color-seal-tint: var(--seal-tint);
+  --color-olive: var(--olive);
+  --color-verdigris: var(--verdigris);
+  --color-verdigris-tint: var(--verdigris-tint);
+  --color-ochre: var(--ochre);
+  --color-ochre-tint: var(--ochre-tint);
+  --font-serif: var(--font-serif);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+* {
+  border-color: var(--rule);
+}
+
+html {
+  background: var(--paper);
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+.hairline {
+  border-color: var(--rule);
+}
+
+::selection {
+  background: var(--seal);
+  color: var(--paper);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
