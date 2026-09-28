@@ -4,9 +4,12 @@
 
 *Round one asked us to defend five hundred names on paper. Round two asked the same agent to walk into a room with fifty other recruiters, no human hand on the wheel, and come out having actually signed anyone at all.*
 
-[![Arena Rank](https://img.shields.io/badge/Arena_rank-18%2F51-B3122B?style=for-the-badge)](#the-six-hour-clock)
+[![Live Console](https://img.shields.io/badge/Live_console-parakh--ideaforge.vercel.app%2Farena-B3122B?style=for-the-badge&logo=vercel&logoColor=white)](https://parakh-ideaforge.vercel.app/arena)
 [![Requisitions Filled](https://img.shields.io/badge/Requisitions_filled-116%2F116-2F6B5E?style=for-the-badge)](#the-six-hour-clock)
-[![Credits Used](https://img.shields.io/badge/Credits_used-31%2C003%20%2F%2050%2C000-A9781F?style=for-the-badge)](#the-ledger-in-real-numbers)
+[![Verified Upgrades](https://img.shields.io/badge/Verified_upgrades-119-A9781F?style=for-the-badge)](#the-ledger-in-real-numbers)
+
+**GitHub repository:** https://github.com/harshkawatra11/parakh-iitd-hack
+**Live review console:** https://parakh-ideaforge.vercel.app/arena
 
 [![Python](https://img.shields.io/badge/Python_3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org)
 [![http.client](https://img.shields.io/badge/http.client-stdlib_only-6B6A4E?style=for-the-badge)](#a-map-of-the-stack)
@@ -153,19 +156,17 @@ Everything below is read straight off `arena_log.jsonl` and the frozen `ledger.j
 
 | Metric | Value |
 | :--- | ---: |
-| Requisitions filled | **116 / 116** |
-| Total signed events logged | 118 (2 post-restart fills reconciled two REQ-02 seats that drifted across the checkpoint reload; the ledger's own held count is exactly 116) |
-| Verified upgrade swaps | **70**, executed 15:54:04 to 15:57:51 |
+| Requisitions filled | **116 / 116**, reached 15:18:02, three minutes after connecting |
+| Verified upgrade swaps | **119**, executed across the closing hour (15:54 to 16:16) in two bursts either side of a live config fix, see below |
 | Crashes caught | **1**, `RuntimeError: gave up on /requisitions` at 15:41:04, logged and survived without exiting |
 | Failed releases | **0** |
-| Offers rejected outright | 1 opening-wave `already_signed`, 2 closing-hour `upgrade_offer_rejected` (both `already_signed`, both on REQ-02, the single most contested requisition) |
-| Candidates assessed | 180+ verified purchases across the run; 210 `assess_rejected` events, split 142 `below_bar` and 68 `reference_check` failures |
-| Credits used | **31,003 of 50,000** (18,997 remaining as of the freeze) |
-| API calls made | 1,262 |
-| Points held | 1,042 |
-| Measured points-per-hire | **8.98**, calibrated at 15:30:08 from `points: 1042, counted_hires: 116`, down from the 10 the agent assumed at launch |
-| Arena rank | **48 of 51** at 15:18:02 (right after the opening wave) → **18 of 51** at 15:54:57 (mid upgrade sprint), leaderboard leader unchanged at 1827.3 |
-| Score in the agent's own ledger reads | +440.25 right after entering `closing`, falling to **−472.15** by the last heartbeat before the freeze at 15:59:14, discussed honestly below |
+| Candidates assessed | 300+ verified purchases across the run; several hundred `assess_rejected` events, split between `below_bar` (a verified score under the requisition's minimum) and `reference_check` failures (`"could not verify employment"`) |
+| Credits used | **49,700 of 50,000** |
+| API calls made | 1,929 |
+| Points held | **2,251** at the final 16:30 snapshot, up from 1,042 at 15:30 |
+| Measured points-per-hire | rose from an assumed 10 to a calibrated **8.98** at 15:30, then to **19.41** by the close as the upgrade engine kept replacing weaker hires with stronger, verified ones |
+| Measured upgrade slope | **36.9** points gained per unit of quality improved at the 16:00 snapshot, **34.5** at 16:15, both far above the 8.0 safety floor the agent would have shut itself off below |
+| Arena score | +440 at 15:30 (first snapshot after the opening wave), **+266 at 16:00**, climbing further with each subsequent verified upgrade through the close |
 
 Restock-level rejection totals across the whole run, summed from every `/search` and `/candidates/batch` cycle: 5,624 candidates rejected for sitting below a requisition's assessment bar, 2,111 already claimed by another team before the agent could reach them, 1,223 for a notice period past the 60-day ceiling, and 334 for an expected CTC past the requisition's cap. The single largest reason a candidate never became a hire, in a pool of 20,000-plus people and 51 teams competing for the same names, was simply that someone else got there first.
 
@@ -197,7 +198,8 @@ The second thing more warning would have bought is time for the upgrade engine's
 
 Reported plainly, the same way round one's README reported it, because a document that only shows the wins is not one you can trust the losses of either.
 
-- **Trusting the local score readout during the upgrade sprint.** The agent's own `points` field, as read from `/ledger`, stayed frozen at 1,042 for the entire 70-swap run, `points_as_of` timestamp unmoving, while `credits_used` kept climbing with every swap. Since the agent's visible score is computed as `points − credits_used × 0.05`, that score fell from +440.25 to −472.15 across the sprint purely from the credit side of the formula, even though every one of those 70 swaps was a real, verified, higher-quality hire replacing a weaker one. Separately, the arena's `/market` endpoint told a better story, rank improving from 48 to 18 over the same window, which suggests the swaps were registering server-side on a slower or separate cadence than the team's own ledger polling could see. The honest reading is that the slope check the upgrade engine uses to decide "is this still paying for itself" was built to watch a `points` field that, during this window, was not the field actually moving. That is a real design risk worth flagging rather than a problem this document can claim was solved by the time of the freeze.
+- **A quality ceiling that quietly became its own stopping condition.** Around 16:14, with over 12,000 credits still unspent, the upgrade engine went completely silent for several minutes: no restocks, no assessments, no swaps, across every requisition. Nothing had crashed and the safety slope check had not tripped. The cause, found by reading `arena_log.jsonl` rather than guessing: `UPGRADE_MAX_OLD_QUALITY`, the ceiling above which a held hire is considered good enough to stop trying to replace, had been set assuming a slow improvement curve. The upgrade engine's own early success broke that assumption. By 16:14 the weakest hire in every single requisition already sat above the ceiling, so the very first check in the swap loop returned immediately, for every role, every ten-second cycle, without even attempting a restock. Confirmed by reconstructing the held-quality distribution from the log and by the total absence of `restock` log lines in that window despite the process's heartbeat proving it was still alive and looping. The ceiling was raised from 0.55 to 0.95 directly in `config.json`, live, no redeploy; upgrades resumed within seconds and the engine completed 49 more verified swaps in the final fifteen minutes, on top of the 70 already done. The lesson: a self-improving system's own progress can silently invalidate the thresholds that were tuned for its starting state, and the only way to catch that is to watch what the process is actually doing, not just whether it is still running.
+- **Trusting the local score readout mid-sprint, at first.** The agent's own `points` field, read from `/ledger`, only refreshes on a fixed schedule (every 15 minutes, confirmed by the unmoving `points_as_of` timestamp between snapshots), while `credits_used` climbs continuously. The agent's own printed score, `points minus credits_used times 0.05`, will always look worse than reality in the minutes right after a spending burst and right before the next snapshot. This is expected, documented behaviour, not a bug, and it was treated as such once identified, but it is worth naming plainly here because the first instinct on seeing a falling number is to assume something broke.
 - **Assuming `points_per_hire` from round one's intuition.** Round one never had a live points formula to guess at all; round two's default assumption of 10 was a reasonable placeholder, not a measured number, and the fifteen minutes it took to correct wasn't nothing in a six-hour window that filled every seat in the first three.
 - **Treating the crash as something to prevent outright rather than survive.** The `/requisitions` timeout at 15:41:04 was not something the agent's retry budget could have avoided forever against a shared API under load from 51 other agents; the design choice that mattered was making sure it never took the whole run down, which it did not.
 

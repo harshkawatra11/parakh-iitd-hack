@@ -1,24 +1,27 @@
 """
-Parakh Arena agent - Team IdeaForge, Innov8 4.0 Grand Finale.
+Parakh Arena agent - Team IdeaForge (Innov8 4.0 Grand Finale, "The Battle Arena").
 
-The one rule everything else follows: a credit is worth PENALTY_FACTOR
-points. Every paid call, and every offer, only happens when the points it is
-expected to earn beat that price. Unspent credits cost nothing at the
-whistle, so there is never a reason to spend for its own sake.
+Runs on the team laptop against the live arena:
+    ARENA_URL=https://innov8-battle-arena.onrender.com  ARENA_KEY=<slip key>  python agent.py
 
-    read requisitions (free)
-    -> recon: cheap wide search, batch-fetch the promising profiles,
-       drop fabricated/duplicate/ineligible ones, rank what's left
-    -> market opens: fire the best offers first, keep restocking each
-       requisition's shortlist, watch /market pressure, upgrade or backfill
-    -> closing: offers cost more; only sign what still clears the bar
-    -> stop spending the moment nothing left clears its price
+Core rule: a credit is worth PENALTY_FACTOR points (score = points - credits x PF).
+Every paid call and every offer happens only when the points it is expected
+to earn beat its price. Unspent credits cost nothing.
 
-Crash safety: every phase is wrapped so one bad candidate, one malformed
-response, or a rate limit never takes the whole run down. State is
-checkpointed to disk after every recon batch and every offer/release, so a
-redeploy (which restarts the process with credits intact) picks up exactly
-where it left off instead of re-spending or double-offering.
+Each loop (every LOOP_SECONDS):
+    /ledger (free)        phase, credits, points -> recalibrate points-per-hire
+    /requisitions (free)  server-truth remaining slots per requisition
+    for each requisition with open slots:
+        queue empty -> restock: next search pages, rank summaries by skill match,
+                       fetch the best profiles (batch when >= 30), forensics,
+                       hard bar filters, queue sorted by expected points
+        pop best -> refresh if stale (60 s in closing) -> assess -> offer if EV > 0
+        -> handle every rejection reason
+    /market every MARKET_EVERY_SECONDS (logged)
+
+Safety: every exception is caught and logged, never fatal; state is
+checkpointed after every signing so a restart never double-offers; a
+heartbeat file stops two copies of the agent from running at once.
 """
 import json
 import os
@@ -29,402 +32,759 @@ import traceback
 from arena_client import Arena, Exhausted, WrongPhase
 import lib
 
-CHECKPOINT_PATH = os.environ.get("CHECKPOINT_PATH", "checkpoint.json")
-LOG_PATH = os.environ.get("LOG_PATH", "arena_log.jsonl")
-CONFIG_PATH = os.environ.get("CONFIG_PATH", "config.json")
+HERE = os.path.dirname(os.path.abspath(__file__))
+CHECKPOINT_PATH = os.environ.get("CHECKPOINT_PATH", os.path.join(HERE, "checkpoint.json"))
+LOG_PATH = os.environ.get("LOG_PATH", os.path.join(HERE, "arena_log.jsonl"))
+CONFIG_PATH = os.environ.get("CONFIG_PATH", os.path.join(HERE, "config.json"))
+HEARTBEAT_PATH = os.environ.get("HEARTBEAT_PATH", os.path.join(HERE, "agent.heartbeat"))
+
+DEFAULTS = {
+    "PENALTY_FACTOR": 0.05,
+    "POINTS_PER_HIRE": 10.0,
+    "LOOP_SECONDS": 10.0,
+    "MARKET_EVERY_SECONDS": 300.0,
+    "HEARTBEAT_LOG_SECONDS": 120.0,
+    "PAGES_PER_RESTOCK": 5.0,
+    "MAX_PAGES_PER_REQ": 120.0,
+    "BATCH_TOP_PER_RESTOCK": 50.0,
+    "BATCH_MIN_IDS": 30.0,
+    "DRY_LIMIT": 4.0,
+    "DRY_RESET_SECONDS": 900.0,
+    "ASSESS_SKIP_MARGIN": 15.0,
+    "ASSESS_ALWAYS": 1.0,
+    "PROFILE_STALE_SECONDS": 180.0,
+    "CLOSING_STALE_SECONDS": 60.0,
+    "MIN_CREDITS_FLOOR": 200.0,
+    "SPEND_CAP": 30000.0,
+    "UPGRADE_ENABLED": 0.0,
+    "UPGRADE_MAX_OLD_QUALITY": 0.55,
+    "UPGRADE_MIN_NEW_QUALITY": 0.70,
+    "UPGRADE_MIN_DELTA": 0.25,
+    "UPGRADE_MIN_SELF_MARGIN": 12.0,
+    "UPGRADE_MAX_SWAPS": 116.0,
+    "UPGRADE_ASSESS_PER_PASS": 6.0,
+    "UPGRADE_PAGES_PER_RESTOCK": 20.0,
+    "UPGRADE_MIN_SLOPE": 8.0,
+}
+
+LIST_KEYS = ("results", "candidates", "profiles", "items", "data", "requisitions", "hits")
 
 
 # ---------------------------------------------------------------------------
-# Config: re-read every loop so a redeploy with one edited number re-tunes
-# the whole agent without touching code, exactly what the brief asks for.
+# Config and logging
 # ---------------------------------------------------------------------------
 def load_config():
-    cfg = {"PENALTY_FACTOR": 0.05, "CLOSING_RESERVE_CREDITS": 1500,
-           "LLM_MAX_CREDITS": 300, "MARKET_POLL_SECONDS": 45}
+    """config.json overrides DEFAULTS; environment variables override both. Re-read every loop."""
+    cfg = dict(DEFAULTS)
     try:
-        with open(CONFIG_PATH) as f:
+        with open(CONFIG_PATH, encoding="utf-8") as f:
             cfg.update(json.load(f))
-    except (FileNotFoundError, json.JSONDecodeError):
+    except (OSError, ValueError):
         pass
-    for k in list(cfg):
+    for k in DEFAULTS:
         if k in os.environ:
             try:
                 cfg[k] = float(os.environ[k])
             except ValueError:
-                cfg[k] = os.environ[k]
+                pass
+    for k in DEFAULTS:
+        try:
+            cfg[k] = float(cfg[k])
+        except (TypeError, ValueError):
+            cfg[k] = DEFAULTS[k]
     return cfg
 
 
-# ---------------------------------------------------------------------------
-# Logging: every decision, every spend, with the reason, so a judge (or a
-# future us) can answer "why did it buy that" from the log alone.
-# ---------------------------------------------------------------------------
 def log(event, **kw):
-    rec = {"t": time.strftime("%H:%M:%S"), "event": event, **kw}
+    """One JSON line per decision, to stdout and arena_log.jsonl. ASCII-only, so the Windows console never chokes."""
+    rec = {"t": time.strftime("%H:%M:%S"), "event": event}
+    rec.update(kw)
     line = json.dumps(rec, default=str)
-    print(line, flush=True)
     try:
-        with open(LOG_PATH, "a") as f:
+        print(line, flush=True)
+    except Exception:
+        pass
+    try:
+        with open(LOG_PATH, "a", encoding="utf-8") as f:
             f.write(line + "\n")
     except OSError:
         pass
 
 
-def dump_once(seen, name, obj):
-    """Log the first real response shape from each endpoint, once, so field
-    aliases can be corrected from the log without guessing."""
-    if name not in seen:
-        seen.add(name)
-        log("first_response", endpoint=name, sample=json.dumps(obj)[:2000])
+# ---------------------------------------------------------------------------
+# Response-shape helpers (the exact JSON shapes were not published)
+# ---------------------------------------------------------------------------
+def extract_list(resp):
+    """A list of dict records from any of the common response shapes."""
+    if isinstance(resp, list):
+        return [x for x in resp if isinstance(x, dict)]
+    if isinstance(resp, dict):
+        for k in LIST_KEYS:
+            v = resp.get(k)
+            if isinstance(v, list):
+                return [x for x in v if isinstance(x, dict)]
+            if isinstance(v, dict) and v and all(isinstance(x, dict) for x in v.values()):
+                return list(v.values())
+        if resp and all(isinstance(x, dict) for x in resp.values()):
+            return list(resp.values())
+    return []
+
+
+def unwrap_profile(p):
+    """{'candidate': {...}, 'claimed': true} -> the inner profile with top-level extras merged in."""
+    if not isinstance(p, dict):
+        return {}
+    for k in ("candidate", "profile", "data"):
+        inner = p.get(k)
+        if isinstance(inner, dict) and inner:
+            merged = dict(inner)
+            for top_key, top_val in p.items():
+                if top_key != k and top_key not in merged:
+                    merged[top_key] = top_val
+            return merged
+    return p
+
+
+def extract_verified(a):
+    """Verified assessment score (0-100) from a /assess response, or None."""
+    if not isinstance(a, dict):
+        return None
+    for key in ("verified_assessment", "verified_score", "assessment", "score",
+                "technical_assessment", "assessment_score"):
+        v = lib.field(a, key)
+        if isinstance(v, dict):
+            v = lib.field(v, "score", "value", "verified", "verified_score")
+        s = lib.p_pct_score(v)
+        if s is not None:
+            return s
+    return None
 
 
 # ---------------------------------------------------------------------------
-# State: what survives a crash or a redeploy
+# Measured costs and persistent state
 # ---------------------------------------------------------------------------
-class State:
+class Costs:
+    """Credit price per endpoint, measured from X-Credits-Remaining around every paid call."""
+    DEFAULT = {"search": 1, "candidate": 2, "batch": 60, "assess": 25, "offer": 10,
+               "release": 5, "market": 2}
+
     def __init__(self):
-        self.signed = {}          # candidate_id -> req_id
-        self.dead = set()         # candidate_id: known claimed/rejected/fabricated
-        self.person_merged = set()  # person keys already resolved to a signed hire
-        self.req_full = set()     # req_id we believe is full
-        self.credits_used_est = 0
+        self.observed = dict(self.DEFAULT)
+
+    def spend(self, arena, endpoint, fn, *args, **kwargs):
+        before = arena.credits_remaining
+        result = fn(*args, **kwargs)
+        after = arena.credits_remaining
+        if before is not None and after is not None and before >= after:
+            self.observed[endpoint] = before - after
+        return result
+
+    def get(self, endpoint):
+        return self.observed.get(endpoint, self.DEFAULT.get(endpoint, 1))
+
+
+class State:
+    """Everything that must survive a crash or restart."""
+
+    def __init__(self):
+        self.signed = {}        # candidate_id -> req_id
+        self.signed_at = {}     # candidate_id -> epoch seconds
+        self.dead = set()       # candidate ids never to spend on again
+        self.person_keys = set()
+        self.next_page = {}     # req_id -> next search page
+        self.dry_restocks = {}  # req_id -> consecutive restocks with nothing eligible
+        self.held_quality = {}  # candidate_id -> quality of a current hire (drives upgrades)
 
     def save(self):
+        data = {"signed": self.signed, "signed_at": self.signed_at, "dead": sorted(self.dead),
+                "person_keys": sorted(self.person_keys), "next_page": self.next_page,
+                "dry_restocks": self.dry_restocks, "held_quality": self.held_quality}
+        tmp = CHECKPOINT_PATH + ".tmp"
         try:
-            with open(CHECKPOINT_PATH, "w") as f:
-                json.dump({
-                    "signed": self.signed,
-                    "dead": list(self.dead),
-                    "person_merged": list(self.person_merged),
-                    "req_full": list(self.req_full),
-                }, f)
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(data, f)
+            os.replace(tmp, CHECKPOINT_PATH)
         except OSError as e:
             log("checkpoint_save_failed", error=str(e))
 
     def load(self):
         try:
-            with open(CHECKPOINT_PATH) as f:
+            with open(CHECKPOINT_PATH, encoding="utf-8") as f:
                 d = json.load(f)
-            self.signed = d.get("signed", {})
-            self.dead = set(d.get("dead", []))
-            self.person_merged = set(d.get("person_merged", []))
-            self.req_full = set(d.get("req_full", []))
-            log("checkpoint_loaded", signed=len(self.signed), dead=len(self.dead))
-        except (FileNotFoundError, json.JSONDecodeError):
+        except (OSError, ValueError):
             log("checkpoint_absent")
+            return
+        self.signed = dict(d.get("signed", {}))
+        self.signed_at = {k: float(v) for k, v in d.get("signed_at", {}).items()}
+        self.dead = set(d.get("dead", []))
+        self.person_keys = set(d.get("person_keys", []))
+        self.next_page = {k: int(v) for k, v in d.get("next_page", {}).items()}
+        self.dry_restocks = {k: int(v) for k, v in d.get("dry_restocks", {}).items()}
+        self.held_quality = {k: float(v) for k, v in d.get("held_quality", {}).items()}
+        log("checkpoint_loaded", signed=len(self.signed), dead=len(self.dead), next_page=self.next_page)
 
 
 # ---------------------------------------------------------------------------
-# Cost auto-calibration: don't trust a hardcoded price table when the
-# closing phase is documented to double offer costs. Measure the real delta
-# in credits_remaining around every paid call and use that going forward.
+# The agent
 # ---------------------------------------------------------------------------
-class Costs:
+class Agent:
     def __init__(self):
-        self.observed = {"search": 1, "candidate": 2, "batch": 60, "assess": 25,
-                          "offer": 10, "release": 5, "market": 2}
+        self.cfg = load_config()
+        self.arena = Arena()
+        self.costs = Costs()
+        self.state = State()
+        self.state.load()
+        self.queues = {}        # req_id -> list of candidate entries, best first
+        self.backlog = {}       # req_id -> summaries found but not yet profiled
+        self.seen = set()       # summary ids already queued for profiling this run
+        self.first_seen = set()
+        self.points_per_hire = self.cfg["POINTS_PER_HIRE"]
+        self.assess_always = self.cfg["ASSESS_ALWAYS"] >= 1
+        self.last_points_as_of = None
+        self.last_phase = None
+        self.phase = "unknown"
+        self.last_market_at = 0.0
+        self.last_heartbeat_log = 0.0
+        self.last_heartbeat_write = 0.0
+        self.last_dry_reset = time.time()
+        self.budget_total = None
+        self.exhausted = False
+        self.stats = {"signed": 0, "rejected": 0, "assessed": 0, "assess_rejected": 0,
+                      "restocks": 0, "refresh_rejected": 0, "upgrades": 0, "upgrade_offer_rejected": 0}
+        self.swaps = 0
+        self.swap_log = []          # (epoch, quality gained) per completed upgrade
+        self.upgrade_off = False    # set when the measured points slope says upgrades don't pay
+        self.prev_points = None
+        self.prev_points_asof = None
+        self.backfill_held_quality()
 
-    def spend(self, arena, endpoint, fn, *a, **kw):
-        before = arena.credits_remaining
-        result = fn(*a, **kw)
-        after = arena.credits_remaining
-        if before is not None and after is not None:
-            delta = before - after
-            if delta >= 0:
-                self.observed[endpoint] = delta
+    def backfill_held_quality(self):
+        """Quality of each current hire, recovered from signed/upgraded log lines when the checkpoint predates it."""
+        if all(c in self.state.held_quality for c in self.state.signed):
+            return
+        try:
+            with open(LOG_PATH, encoding="utf-8") as f:
+                for line in f:
+                    if '"event": "signed"' not in line and '"event": "upgraded"' not in line:
+                        continue
+                    try:
+                        r = json.loads(line)
+                    except ValueError:
+                        continue
+                    cid, q = r.get("cid"), r.get("quality")
+                    if cid in self.state.signed and q is not None:
+                        self.state.held_quality[cid] = float(q)
+        except OSError:
+            pass
+        log("held_quality_backfilled", known=len(self.state.held_quality), signed=len(self.state.signed))
+
+    # ---- small utilities --------------------------------------------------
+    @property
+    def pf(self):
+        return self.cfg["PENALTY_FACTOR"]
+
+    def dump_once(self, name, obj):
+        """Log the first real response of each endpoint once, so field names can be checked from the log."""
+        if name not in self.first_seen:
+            self.first_seen.add(name)
+            log("first_response", endpoint=name, sample=json.dumps(obj, default=str)[:2500])
+
+    def touch_heartbeat(self, force=False):
+        now = time.time()
+        if not force and now - self.last_heartbeat_write < 5:
+            return
+        self.last_heartbeat_write = now
+        try:
+            with open(HEARTBEAT_PATH, "w", encoding="utf-8") as f:
+                f.write(str(now))
+        except OSError:
+            pass
+
+    def call(self, endpoint, fn, *args, **kwargs):
+        """Every paid call goes through here: cost measured, first response logged, errors contained."""
+        self.touch_heartbeat()
+        try:
+            result = self.costs.spend(self.arena, endpoint, fn, *args, **kwargs)
+        except (Exhausted, WrongPhase):
+            raise
+        except Exception as e:
+            log("call_failed", endpoint=endpoint, error=str(e)[:300])
+            return None
+        self.dump_once(endpoint, result)
         return result
 
-    def get(self, endpoint, n=1):
-        return self.observed.get(endpoint, 1) * n
+    def can_spend(self, cost):
+        cr = self.arena.credits_remaining
+        if cr is None:
+            return True
+        if cr - cost < self.cfg["MIN_CREDITS_FLOOR"]:
+            return False
+        if self.budget_total is not None and (self.budget_total - cr) + cost > self.cfg["SPEND_CAP"]:
+            return False
+        return True
 
+    def est_points(self, e):
+        return self.points_per_hire * (0.5 + 0.5 * e["quality"])
 
-# ---------------------------------------------------------------------------
-# Recon: learn the pool while offers are locked (the cheapest hour to learn)
-# ---------------------------------------------------------------------------
-def run_recon(arena, cfg, costs, state, seen_first, reqs):
-    """Returns {req_id: [(candidate_id, quality, confidence, est_points), ...]}
-    sorted best-first, built from a cheap wide search and selective /assess."""
-    pf = cfg["PENALTY_FACTOR"]
-    intensity = min(4.0, max(0.25, 0.05 / max(pf, 1e-6)))
-    queues = {}
-    uf = lib.UnionFind()
-    person_of = {}  # candidate_id -> person key used for dedupe
+    # ---- building queues ---------------------------------------------------
+    def evaluate(self, cid, prof, bar, reasons=None):
+        """Profile -> queue entry, or None (and the id retired) if it fails any hard check."""
+        q, reason, conf, detail = lib.fit_score(prof, bar)
+        if q is None:
+            self.state.dead.add(cid)
+            if reasons is not None:
+                key = reason.split(":")[0].split(" ")[0]
+                reasons[key] = reasons.get(key, 0) + 1
+            return None
+        keys = lib.person_key_candidates(prof)
+        if any(k in self.state.person_keys for k in keys):
+            self.state.dead.add(cid)
+            if reasons is not None:
+                reasons["duplicate_person"] = reasons.get("duplicate_person", 0) + 1
+            return None
+        return {"cid": cid, "profile": prof, "fetched_at": time.time(), "quality": q,
+                "conf": conf, "detail": detail, "verified": False, "keys": keys}
 
-    for req_id, req in reqs.items():
-        bar = lib.requisition_bar(req)
-        pages_budget = max(2, int(6 * intensity))
-        shortlist_summaries = []
-        seen_ids = set()
-
-        for page in range(pages_budget):
-            if arena.credits_remaining is not None and arena.credits_remaining < costs.get("offer", 50):
-                break
-            try:
-                resp = costs.spend(arena, "search", arena.search, role=bar["role"], page=page, size=100)
-            except Exhausted:
-                raise
-            except Exception as e:
-                log("search_error", req=req_id, page=page, error=str(e))
-                break
-            dump_once(seen_first, "search", resp)
-            results = resp.get("results") or resp.get("candidates") or []
-            if not results:
-                log("search_empty", req=req_id, page=page)
-                break
-            new = 0
-            for c in results:
-                cid = lib.field(c, "candidate_id", "id")
-                if not cid or cid in seen_ids or cid in state.dead:
-                    continue
-                seen_ids.add(cid)
-                new += 1
-                shortlist_summaries.append(c)
-            if new == 0:
-                break
-
-        # Rank locally by skill overlap on the summary alone (cheap, no spend)
-        ranked = sorted(
-            shortlist_summaries,
-            key=lambda c: lib.skill_overlap(lib.field(c, "skills"), bar["skills"]),
-            reverse=True,
-        )
-        top_n = max(30, bar["headcount"] * 10)
-        candidate_ids = [lib.field(c, "candidate_id", "id") for c in ranked[:top_n]]
-        candidate_ids = [c for c in candidate_ids if c]
-        log("shortlist_built", req=req_id, role=bar["role"], summaries=len(shortlist_summaries),
-            shortlisted=len(candidate_ids))
-
-        # Batch-fetch full profiles, 50 at a time
+    def fetch_profiles(self, ids):
+        """Full profiles for ids: one batch call per 50 when at least BATCH_MIN_IDS are wanted, else singles."""
         profiles = {}
-        for i in range(0, len(candidate_ids), 50):
-            chunk = candidate_ids[i:i + 50]
-            if arena.credits_remaining is not None and arena.credits_remaining < costs.get("offer", 50):
-                break
-            try:
-                resp = costs.spend(arena, "batch", arena.batch, chunk)
-            except Exhausted:
-                raise
-            except Exception as e:
-                log("batch_error", req=req_id, error=str(e))
-                continue
-            dump_once(seen_first, "batch", resp)
-            if isinstance(resp, list):
-                got = resp
-            else:
-                got = resp.get("profiles") or resp.get("results") or []
-            if isinstance(got, dict):
-                got = list(got.values())
-            for p in got:
-                cid = lib.field(p, "candidate_id", "id")
-                if cid:
-                    profiles[cid] = p
-
-        # Dedupe people, drop fabricated, score fit
-        scored = []
-        assess_calls = 0
-        max_assess = max(4, bar["headcount"] * 3)  # hard cap: EV alone must not blow the clock/budget
-        for cid, profile in profiles.items():
-            for k in lib.person_key_candidates(profile):
-                if k in person_of:
-                    uf.union(person_of[k], cid)
-                else:
-                    person_of[k] = cid
-
-            quality, notes, confidence = lib.fit_score(profile, bar)
-            if quality is None:
-                state.dead.add(cid) if "fabricated" in ",".join(notes) or "already_claimed" in notes else None
-                continue
-
-            # Selective /assess: only where the offer decision actually hangs on it
-            est_points_unverified = bar["points"] * quality
-            uncertainty = 1.0 - confidence
-            assess_cost_pts = costs.get("assess") * pf
-            if uncertainty * est_points_unverified > assess_cost_pts and \
-               assess_calls < max_assess and \
-               arena.credits_remaining and arena.credits_remaining > costs.get("assess") * 3:
-                assess_calls += 1
-                try:
-                    a = costs.spend(arena, "assess", arena.assess, cid)
-                    dump_once(seen_first, "assess", a)
-                    verified = lib.p_pct_score(lib.field(a, "assessment", "score"))
-                    ref_note = lib.field(a, "reference_check", "notes")
-                    q2, n2, c2 = lib.fit_score(profile, bar, verified_assessment=verified)
-                    if q2 is None:
-                        state.dead.add(cid)
-                        continue
-                    sentiment = lib.note_sentiment(ref_note) + lib.note_sentiment(lib.field(profile, "recruiter_note", "notes"))
-                    quality, confidence = min(1.0, max(0.0, q2 + 0.03 * sentiment)), max(c2, 0.9)
-                except Exhausted:
-                    raise
-                except Exception as e:
-                    log("assess_error", cid=cid, error=str(e))
-
-            est_points = bar["points"] * quality
-            scored.append((cid, quality, confidence, est_points))
-
-        scored.sort(key=lambda t: t[3] * t[2], reverse=True)
-        queues[req_id] = scored
-        log("req_scored", req=req_id, candidates=len(scored))
-
-    # Fold union-find merges into a dead-duplicate set: keep only the
-    # highest-value entry per resolved person across every queue.
-    best_for_person = {}
-    for req_id, scored in queues.items():
-        for cid, q, conf, pts in scored:
-            root = uf.find(cid) if cid in uf.parent else cid
-            cur = best_for_person.get(root)
-            if cur is None or pts > cur[2]:
-                best_for_person[root] = (cid, req_id, pts)
-    keep_ids = {v[0] for v in best_for_person.values()}
-    for req_id in queues:
-        queues[req_id] = [t for t in queues[req_id] if t[0] in keep_ids]
-
-    return queues
-
-
-# ---------------------------------------------------------------------------
-# Offer wave: fire the best available candidate into each open slot
-# ---------------------------------------------------------------------------
-def fire_offers(arena, cfg, costs, state, reqs, queues, phase):
-    pf = cfg["PENALTY_FACTOR"]
-    offer_cost = costs.get("offer")
-    reserve = 0 if phase == "closing" else cfg["CLOSING_RESERVE_CREDITS"]
-
-    for req_id, req in reqs.items():
-        if req_id in state.req_full:
-            continue
-        bar = lib.requisition_bar(req)
-        held = sum(1 for r in state.signed.values() if r == req_id)
-        queue = queues.get(req_id, [])
-        while held < bar["headcount"] and queue:
-            if arena.credits_remaining is not None and arena.credits_remaining - offer_cost < reserve:
-                log("reserve_hit", req=req_id, remaining=arena.credits_remaining)
-                return
-            cid, quality, confidence, est_points = queue.pop(0)
-            if cid in state.dead or cid in state.signed:
-                continue
-            ev = quality * confidence * bar["points"] - offer_cost * pf
-            if ev <= 0:
-                log("skip_low_ev", cid=cid, req=req_id, ev=round(ev, 3))
-                continue
-            try:
-                resp = costs.spend(arena, "offer", arena.offer, cid, req_id)
-            except Exhausted:
-                raise
-            except WrongPhase:
-                return
-            except Exception as e:
-                log("offer_error", cid=cid, req=req_id, error=str(e))
-                continue
-
-            if resp.get("accepted"):
-                state.signed[cid] = req_id
-                held += 1
-                log("signed", cid=cid, req=req_id, est_points=round(est_points, 2), ev=round(ev, 3))
-                state.save()
-            else:
-                reason = resp.get("reason", "unknown")
-                log("offer_rejected", cid=cid, req=req_id, reason=reason)
-                if reason == "requisition_full":
-                    state.req_full.add(req_id)
+        ids = [str(i) for i in ids if i]
+        if len(ids) >= int(self.cfg["BATCH_MIN_IDS"]):
+            for i in range(0, len(ids), 50):
+                chunk = ids[i:i + 50]
+                if not self.can_spend(self.costs.get("batch")):
                     break
-                elif reason in ("already_signed", "same_person_already_signed", "role_mismatch"):
-                    state.dead.add(cid)
-                else:
-                    state.dead.add(cid)
-                state.save()
+                items = extract_list(self.call("batch", self.arena.batch, chunk))
+                for n, p in enumerate(items):
+                    p = unwrap_profile(p)
+                    cid = lib.field(p, "candidate_id", "id")
+                    if cid is None and len(items) == len(chunk):
+                        cid = chunk[n]
+                    if cid is not None:
+                        profiles[str(cid)] = p
+        else:
+            for cid in ids:
+                if not self.can_spend(self.costs.get("candidate")):
+                    break
+                p = self.call("candidate", self.arena.candidate, cid)
+                if isinstance(p, dict):
+                    p = unwrap_profile(p)
+                    profiles[str(lib.field(p, "candidate_id", "id") or cid)] = p
+        return profiles
 
+    def restock(self, bar, pages=None):
+        """Refill one requisition's queue from its backlog or the next search pages. Returns entries added."""
+        rid = bar["req_id"]
+        pages_n = int(pages if pages is not None else self.cfg["PAGES_PER_RESTOCK"])
+        max_pages = int(self.cfg["MAX_PAGES_PER_REQ"])
+        want = int(self.cfg["BATCH_TOP_PER_RESTOCK"])
+        backlog = self.backlog.setdefault(rid, [])
+        self.stats["restocks"] += 1
 
-# ---------------------------------------------------------------------------
-# Main state machine
-# ---------------------------------------------------------------------------
-def main():
-    cfg = load_config()
-    arena = Arena()
-    state = State()
-    state.load()
-    costs = Costs()
-    seen_first = set()
+        if len(backlog) < want:
+            start = int(self.state.next_page.get(rid, 0))
+            end = min(start + pages_n, max_pages)
+            for page in range(start, end):
+                if not self.can_spend(self.costs.get("search")):
+                    break
+                resp = self.call("search", self.arena.search, q="", role=bar["role"] or None,
+                                 page=page, size=100)
+                self.state.next_page[rid] = page + 1
+                if resp is None:
+                    break
+                results = extract_list(resp)
+                if not results:
+                    self.state.next_page[rid] = max_pages
+                    log("search_exhausted", req=rid, page=page)
+                    break
+                for s in results:
+                    cid = lib.field(s, "candidate_id", "id")
+                    if cid is None:
+                        continue
+                    cid = str(cid)
+                    if cid in self.seen or cid in self.state.dead or cid in self.state.signed:
+                        continue
+                    self.seen.add(cid)
+                    if lib.truthy(lib.field(s, "claimed", "is_claimed")):
+                        self.state.dead.add(cid)
+                        continue
+                    backlog.append(s)
+            backlog.sort(key=lambda s: lib.skill_overlap(lib.field(s, "skills"), bar["skills"]), reverse=True)
 
-    log("start", penalty_factor=cfg["PENALTY_FACTOR"])
+        if not backlog:
+            self.state.dry_restocks[rid] = self.state.dry_restocks.get(rid, 0) + 1
+            log("restock", req=rid, pages_to=self.state.next_page.get(rid), summaries=0,
+                profiled=0, eligible=0, dry=self.state.dry_restocks[rid])
+            self.state.save()
+            return 0
 
-    reqs = {}
-    queues = {}
-    last_phase = None
-    recon_done = False
+        pick = [str(lib.field(s, "candidate_id", "id")) for s in backlog[:want]]
+        del backlog[:want]
+        profiles = self.fetch_profiles(pick)
+        reasons = {}
+        queue = self.queues.setdefault(rid, [])
+        added = 0
+        for cid, prof in profiles.items():
+            e = self.evaluate(cid, prof, bar, reasons)
+            if e:
+                queue.append(e)
+                added += 1
+        queue.sort(key=lambda e: e["conf"] * self.est_points(e), reverse=True)
+        self.state.dry_restocks[rid] = 0 if added else self.state.dry_restocks.get(rid, 0) + 1
+        log("restock", req=rid, pages_to=self.state.next_page.get(rid), picked=len(pick),
+            profiled=len(profiles), eligible=added, queue=len(queue), backlog=len(backlog),
+            rejects=reasons, dry=self.state.dry_restocks[rid])
+        self.state.save()
+        return added
 
-    while True:
-        try:
-            cfg = load_config()  # re-read every loop: redeploy-tunable
-            try:
-                led = arena.ledger()
-            except Exhausted:
-                log("exhausted_idle")
-                time.sleep(20)
+    # ---- verifying and signing ---------------------------------------------
+    def refresh(self, e, bar):
+        """Re-read a queued profile before offering (claimed status may have changed)."""
+        if not self.can_spend(self.costs.get("candidate")):
+            return e
+        p = self.call("candidate", self.arena.candidate, e["cid"])
+        if not isinstance(p, dict):
+            return None
+        p = unwrap_profile(p)
+        verified = e["detail"].get("assessment") if e["detail"].get("src") == "verified" else None
+        q, reason, conf, detail = lib.fit_score(p, bar, verified_assessment=verified)
+        if q is None:
+            self.state.dead.add(e["cid"])
+            self.stats["refresh_rejected"] += 1
+            log("refresh_rejected", cid=e["cid"], req=bar["req_id"], reason=reason)
+            return None
+        e.update(profile=p, fetched_at=time.time(), quality=q, detail=detail,
+                 conf=max(conf, e["conf"]) if e["verified"] else conf)
+        return e
+
+    def should_assess(self, e):
+        if self.assess_always:
+            return True
+        d = e["detail"]
+        if d.get("src") == "none" or d.get("sentiment", 0) < 0:
+            return True
+        mp = d.get("margin_pts")
+        if mp is not None and mp >= self.cfg["ASSESS_SKIP_MARGIN"]:
+            return False
+        return (1.0 - e["conf"]) * self.est_points(e) > self.costs.get("assess") * self.pf
+
+    def assess(self, e, bar):
+        """Buy the verified assessment + reference check. None = candidate ruled out."""
+        if not self.can_spend(self.costs.get("assess")):
+            return e
+        a = self.call("assess", self.arena.assess, e["cid"])
+        if not isinstance(a, dict):
+            return e                     # assessment unavailable: fall back to unverified numbers
+        self.stats["assessed"] += 1
+        if lib.reference_check_bad(a):
+            self.state.dead.add(e["cid"])
+            self.stats["assess_rejected"] += 1
+            log("assess_rejected", cid=e["cid"], req=bar["req_id"], why="reference_check",
+                sample=json.dumps(a, default=str)[:300])
+            return None
+        verified = extract_verified(a)
+        q, reason, conf, detail = lib.fit_score(e["profile"], bar, verified_assessment=verified)
+        if q is None:
+            self.state.dead.add(e["cid"])
+            self.stats["assess_rejected"] += 1
+            log("assess_rejected", cid=e["cid"], req=bar["req_id"], why=reason)
+            return None
+        if verified is None:
+            conf = max(conf, 0.85)       # reference check passed even without a score
+        e.update(quality=q, conf=conf, detail=detail, verified=True)
+        return e
+
+    def work_req(self, bar):
+        """Fill one requisition's open slots, restocking its queue as it drains."""
+        rid = bar["req_id"]
+        remaining = int(bar["remaining"])
+        queue = self.queues.setdefault(rid, [])
+        while remaining > 0 and not self.exhausted:
+            if not queue:
+                if self.state.dry_restocks.get(rid, 0) >= int(self.cfg["DRY_LIMIT"]):
+                    return
+                if (int(self.state.next_page.get(rid, 0)) >= int(self.cfg["MAX_PAGES_PER_REQ"])
+                        and not self.backlog.get(rid)):
+                    return
+                self.restock(bar)
                 continue
-            dump_once(seen_first, "ledger", led)
-            phase = led.get("phase", "unknown")
-            if phase != last_phase:
-                log("phase_change", phase=phase, credits_remaining=arena.credits_remaining)
-                last_phase = phase
+            e = queue.pop(0)
+            cid = e["cid"]
+            if cid in self.state.signed or cid in self.state.dead:
+                continue
+            if any(k in self.state.person_keys for k in e["keys"]):
+                self.state.dead.add(cid)
+                continue
+            stale = (self.cfg["CLOSING_STALE_SECONDS"] if self.phase == "closing"
+                     else self.cfg["PROFILE_STALE_SECONDS"])
+            if time.time() - e["fetched_at"] > stale:
+                e = self.refresh(e, bar)
+                if e is None:
+                    continue
+            if not e["verified"] and self.should_assess(e):
+                e = self.assess(e, bar)
+                if e is None:
+                    continue
+            offer_cost = self.costs.get("offer")
+            ev = e["conf"] * self.est_points(e) - offer_cost * self.pf
+            if ev <= 0:
+                log("skip_low_ev", cid=cid, req=rid, ev=round(ev, 3))
+                continue
+            if not self.can_spend(offer_cost):
+                log("budget_stop", req=rid, credits_remaining=self.arena.credits_remaining)
+                queue.insert(0, e)
+                return
+            resp = self.call("offer", self.arena.offer, cid, rid)
+            if not isinstance(resp, dict):
+                self.state.dead.add(cid)
+                self.state.save()
+                continue
+            if resp.get("accepted"):
+                self.state.signed[cid] = rid
+                self.state.signed_at[cid] = time.time()
+                self.state.person_keys.update(e["keys"])
+                self.state.held_quality[cid] = e["quality"]
+                remaining -= 1
+                self.stats["signed"] += 1
+                log("signed", cid=cid, req=rid, quality=round(e["quality"], 3), conf=e["conf"],
+                    est_points=round(self.est_points(e), 2), ev=round(ev, 2), verified=e["verified"],
+                    already_yours=bool(resp.get("already_yours")), detail=e["detail"],
+                    credits_remaining=self.arena.credits_remaining)
+                self.state.save()
+            else:
+                reason = str(resp.get("reason") or resp.get("error") or "unknown")
+                self.stats["rejected"] += 1
+                self.state.dead.add(cid)
+                log("offer_rejected", cid=cid, req=rid, reason=reason)
+                self.state.save()
+                if reason == "requisition_full":
+                    return
 
-            if phase == "closed":
-                log("final", ledger=led)
+    # ---- closing-hour upgrades ----------------------------------------------
+    def upgrade_worthy(self, e):
+        """Worth paying to assess as an upgrade: already verified, or a self-reported margin with room to spare."""
+        if e["verified"]:
+            return True
+        d = e["detail"]
+        mp = d.get("margin_pts")
+        return mp is not None and mp >= self.cfg["UPGRADE_MIN_SELF_MARGIN"] and d.get("sentiment", 0) >= 0
+
+    def upgrade_req(self, bar):
+        """Swap this requisition's weakest hire for a clearly stronger, verified candidate.
+
+        Order: find and verify the replacement first, release the weak hire only once
+        the replacement is proven, then offer. If the offer is refused after the
+        release, the slot is empty and the normal fill pass refills it next loop.
+        """
+        rid = bar["req_id"]
+        cfg = self.cfg
+        assessed = 0
+        restocks = 0
+        queue = self.queues.setdefault(rid, [])
+        while (not self.upgrade_off and self.swaps < int(cfg["UPGRADE_MAX_SWAPS"])
+               and assessed < int(cfg["UPGRADE_ASSESS_PER_PASS"])):
+            held = [(self.state.held_quality.get(c, 0.0), c) for c, r in self.state.signed.items() if r == rid]
+            if not held:
+                return
+            q_old, old_cid = min(held)
+            if q_old > cfg["UPGRADE_MAX_OLD_QUALITY"]:
+                return
+            need = max(cfg["UPGRADE_MIN_NEW_QUALITY"], q_old + cfg["UPGRADE_MIN_DELTA"])
+            cands = [e for e in queue
+                     if e["cid"] not in self.state.dead and e["cid"] not in self.state.signed
+                     and e["quality"] >= need and self.upgrade_worthy(e)]
+            if not cands:
+                if restocks >= 2 or self.state.dry_restocks.get(rid, 0) >= int(cfg["DRY_LIMIT"]):
+                    return
+                if int(self.state.next_page.get(rid, 0)) >= int(cfg["MAX_PAGES_PER_REQ"]) and not self.backlog.get(rid):
+                    return
+                restocks += 1
+                self.restock(bar, pages=int(cfg["UPGRADE_PAGES_PER_RESTOCK"]))
+                continue
+            e = max(cands, key=lambda x: x["quality"])
+            queue.remove(e)
+            stale = cfg["CLOSING_STALE_SECONDS"] if self.phase == "closing" else cfg["PROFILE_STALE_SECONDS"]
+            if time.time() - e["fetched_at"] > stale:
+                e = self.refresh(e, bar)
+                if e is None:
+                    continue
+            if not e["verified"]:
+                assessed += 1
+                e = self.assess(e, bar)
+                if e is None:
+                    continue
+            if e["quality"] < q_old + cfg["UPGRADE_MIN_DELTA"]:
+                queue.append(e)          # verified, just not strong enough to replace this hire
+                continue
+            if not self.can_spend(self.costs.get("release") + self.costs.get("offer")):
+                queue.append(e)
+                return
+            rel = self.call("release", self.arena.release, old_cid)
+            if not isinstance(rel, dict) or rel.get("error") or rel.get("released") is False:
+                log("release_failed", cid=old_cid, req=rid, resp=json.dumps(rel, default=str)[:200])
+                queue.append(e)
+                return
+            self.state.signed.pop(old_cid, None)
+            self.state.signed_at.pop(old_cid, None)
+            self.state.held_quality.pop(old_cid, None)
+            self.state.dead.add(old_cid)
+            self.state.save()
+            resp = self.call("offer", self.arena.offer, e["cid"], rid)
+            if isinstance(resp, dict) and resp.get("accepted"):
+                cid = e["cid"]
+                self.state.signed[cid] = rid
+                self.state.signed_at[cid] = time.time()
+                self.state.held_quality[cid] = e["quality"]
+                self.state.person_keys.update(e["keys"])
+                self.swaps += 1
+                self.stats["upgrades"] += 1
+                self.swap_log.append((time.time(), e["quality"] - q_old))
+                log("upgraded", cid=cid, quality=round(e["quality"], 3), old_cid=old_cid,
+                    old_quality=round(q_old, 3), req=rid, swaps=self.swaps, detail=e["detail"],
+                    credits_remaining=self.arena.credits_remaining)
+            else:
+                self.state.dead.add(e["cid"])
+                self.stats["upgrade_offer_rejected"] += 1
+                reason = resp.get("reason") if isinstance(resp, dict) else resp
+                log("upgrade_offer_rejected", cid=e["cid"], req=rid, reason=str(reason))
+            self.state.save()
+
+    # ---- periodic tasks ----------------------------------------------------
+    def calibrate(self, led):
+        """Learn points-per-hire from /ledger each time points_as_of moves (15-minute refresh)."""
+        asof = led.get("points_as_of")
+        if asof is None or asof == self.last_points_as_of:
+            return
+        first = self.last_points_as_of is None
+        self.last_points_as_of = asof
+        try:
+            asof_f = float(asof)
+        except (TypeError, ValueError):
+            return
+        pts = lib.first_number(led.get("points"), 0.0) or 0.0
+        if self.prev_points is not None and self.swap_log:
+            dq = sum(d for t, d in self.swap_log if self.prev_points_asof + 5 < t <= asof_f - 5)
+            if dq >= 1.0:
+                slope = (pts - self.prev_points) / dq
+                log("upgrade_slope", delta_points=round(pts - self.prev_points, 2),
+                    delta_quality=round(dq, 3), slope=round(slope, 2))
+                if slope < self.cfg["UPGRADE_MIN_SLOPE"]:
+                    self.upgrade_off = True
+                    log("upgrade_stopped", why="measured points slope below UPGRADE_MIN_SLOPE",
+                        slope=round(slope, 2))
+        self.prev_points, self.prev_points_asof = pts, asof_f
+        if first:
+            return
+        counted = sum(1 for t in self.state.signed_at.values() if t <= asof_f - 5)
+        if counted >= 3 and pts > 0:
+            live = max(1.0, min(200.0, pts / counted))
+            log("points_calibrated", points=pts, counted_hires=counted,
+                points_per_hire=round(live, 2), was=round(self.points_per_hire, 2))
+            self.points_per_hire = live
+            if live < 3.0 and self.assess_always:
+                self.assess_always = False
+                log("assess_policy", assess_always=False, why="a hire is worth less than 3 points")
+        elif counted >= 5 and pts <= 0 and not self.assess_always:
+            self.assess_always = True
+            log("zero_points_alert", counted_hires=counted, action="assess every candidate from now on")
+
+    def maybe_market(self):
+        if time.time() - self.last_market_at < self.cfg["MARKET_EVERY_SECONDS"]:
+            return
+        if not self.can_spend(self.costs.get("market")):
+            return
+        self.last_market_at = time.time()
+        m = self.call("market", self.arena.market)
+        if m is not None:
+            log("market", sample=json.dumps(m, default=str)[:1500])
+
+    def heartbeat_log(self, led):
+        if time.time() - self.last_heartbeat_log < self.cfg["HEARTBEAT_LOG_SECONDS"]:
+            return
+        self.last_heartbeat_log = time.time()
+        log("heartbeat", phase=self.phase, credits_remaining=self.arena.credits_remaining,
+            ledger_signed=led.get("signed"), points=led.get("points"), score=led.get("score"),
+            points_per_hire=round(self.points_per_hire, 2), assess_always=self.assess_always,
+            swaps=self.swaps, upgrade_off=self.upgrade_off,
+            observed_costs=self.costs.observed, stats=self.stats,
+            queues={k: len(v) for k, v in self.queues.items()}, next_page=self.state.next_page)
+
+    # ---- main loop ---------------------------------------------------------
+    def run(self):
+        log("start", url=self.arena.base, penalty_factor=self.pf, points_per_hire=self.points_per_hire,
+            assess_always=self.assess_always, restored_signed=len(self.state.signed),
+            restored_dead=len(self.state.dead))
+        while True:
+            try:
+                self.touch_heartbeat(force=True)
+                self.cfg = load_config()
+                led = self.arena.ledger()
+                self.dump_once("ledger", led)
+                if self.budget_total is None:
+                    used = lib.first_number(led.get("credits_used"), 0.0) or 0.0
+                    rem = lib.first_number(led.get("credits_remaining"))
+                    if rem is not None:
+                        self.budget_total = used + rem
+                self.phase = str(led.get("phase", "unknown"))
+                if self.phase != self.last_phase:
+                    log("phase_change", phase=self.phase, credits_remaining=self.arena.credits_remaining,
+                        score=led.get("score"), points=led.get("points"))
+                    self.last_phase = self.phase
+                if self.phase == "closed":
+                    log("final", ledger=led, stats=self.stats)
+                    break
+                self.calibrate(led)
+                if time.time() - self.last_dry_reset > self.cfg["DRY_RESET_SECONDS"]:
+                    self.state.dry_restocks = {}
+                    self.last_dry_reset = time.time()
+                    log("dry_reset")
+                if self.phase in ("market", "closing") and not self.exhausted:
+                    reqs = extract_list(self.arena.requisitions())
+                    self.dump_once("requisitions", reqs)
+                    bars = [lib.requisition_bar(r, self.points_per_hire) for r in reqs]
+                    bars = [b for b in bars if b["req_id"] and b["remaining"] > 0]
+                    bars.sort(key=lambda b: b["remaining"], reverse=True)
+                    for bar in bars:
+                        self.work_req(bar)
+                    if self.cfg["UPGRADE_ENABLED"] >= 1 and not self.upgrade_off:
+                        for r in reqs:
+                            full = lib.requisition_bar(r, self.points_per_hire)
+                            if full["req_id"] and full["remaining"] == 0:
+                                self.upgrade_req(full)
+                    self.maybe_market()
+                self.heartbeat_log(led)
+                time.sleep(self.cfg["LOOP_SECONDS"])
+            except Exhausted:
+                self.exhausted = True
+                log("credits_exhausted")
+                time.sleep(30)
+            except WrongPhase as e:
+                log("wrong_phase", error=str(e)[:200])
+                time.sleep(3)
+            except KeyboardInterrupt:
+                log("stopped_by_keyboard")
                 break
+            except Exception:
+                log("crash_caught", trace=traceback.format_exc()[-2000:])
+                time.sleep(5)
+        self.state.save()
 
-            if not reqs:
-                reqs = {r.get("req_id") or r.get("id"): r for r in arena.requisitions()}
-                dump_once(seen_first, "requisitions", reqs)
-                log("requisitions_loaded", n=len(reqs))
 
-            if phase == "recon" and not recon_done:
-                queues = run_recon(arena, cfg, costs, state, seen_first, reqs)
-                recon_done = True
-                state.save()
-                log("recon_complete")
-                # Recon can run long enough that the market has already
-                # opened by the time it finishes: re-check immediately
-                # instead of waiting for the next poll, so the opening wave
-                # of offers goes out the moment it is legal, not seconds late.
-                try:
-                    phase = arena.ledger().get("phase", phase)
-                except Exhausted:
-                    pass
-
-            if phase in ("market", "closing"):
-                if not recon_done:
-                    # Arena skipped straight past recon (or we started late):
-                    # do a fast, cheap version so we're not empty-handed.
-                    queues = run_recon(arena, cfg, costs, state, seen_first, reqs)
-                    recon_done = True
-                fire_offers(arena, cfg, costs, state, reqs, queues, phase)
-
-                # Periodically check market pressure and top up empty queues
-                try:
-                    m = costs.spend(arena, "market", arena.market)
-                    dump_once(seen_first, "market", m)
-                except Exhausted:
-                    pass
-                except Exception as e:
-                    log("market_error", error=str(e))
-
-            time.sleep(cfg["MARKET_POLL_SECONDS"] if phase != "recon" else 5)
-
-        except Exhausted:
-            log("out_of_credits")
-            time.sleep(30)
-        except WrongPhase as e:
-            log("wrong_phase", error=str(e))
-            time.sleep(5)
-        except Exception:
-            log("crash_caught", trace=traceback.format_exc()[-1500:])
-            time.sleep(5)
-
-    try:
-        final_ledger = arena.ledger()
-        log("summary", signed=len(state.signed), ledger=final_ledger)
-    except Exception as e:
-        log("final_ledger_failed", error=str(e))
+def main():
+    if not os.environ.get("ARENA_KEY"):
+        print("ARENA_KEY is not set. Set it in this terminal, then run again.", flush=True)
+        sys.exit(1)
+    if os.environ.get("FORCE_START") != "1":
+        try:
+            with open(HEARTBEAT_PATH, encoding="utf-8") as f:
+                age = time.time() - float(f.read().strip())
+            if age < 60:
+                print(f"Another agent wrote a heartbeat {age:.0f}s ago ({HEARTBEAT_PATH}). "
+                      "If no other agent is running, wait 60 s or set FORCE_START=1.", flush=True)
+                sys.exit(2)
+        except (OSError, ValueError):
+            pass
+    Agent().run()
 
 
 if __name__ == "__main__":

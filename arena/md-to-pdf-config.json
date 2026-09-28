@@ -1,0 +1,8 @@
+{
+  "pdf_options": {
+    "format": "A4",
+    "margin": { "top": "10mm", "bottom": "10mm", "left": "12mm", "right": "12mm" },
+    "printBackground": true
+  },
+  "stylesheet": ["arena_pdf_style.css"]
+}
