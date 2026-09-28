@@ -15,3 +15,11 @@ parakh_run/
 data-export/parakh_export.json
 IdeaForge.zip
 *.zip
+
+# Arena finale - local test artefacts, never deployed
+arena/__pycache__/
+arena/checkpoint.json
+arena/arena_log.jsonl
+arena/*.log
+arena/*.pid
+arena/parakh_arena.zip
