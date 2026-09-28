@@ -1,0 +1,1187 @@
+{
+  "meta": {
+    "team": "idea_forge",
+    "generated_from": "arena_snapshot frozen 15:59 IST",
+    "phase": "closing"
+  },
+  "ledger": {
+    "team": "idea_forge",
+    "credits_used": 31003,
+    "credits_remaining": 18997,
+    "calls": 1262,
+    "signed": 116,
+    "points": 1042,
+    "score": -508.15,
+    "points_as_of": 1790590500,
+    "phase": "closing"
+  },
+  "requisitions_summary": {
+    "total_headcount": 116,
+    "total_filled": 116,
+    "roles": [
+      {
+        "req_id": "REQ-01",
+        "role": "Backend Engineer",
+        "headcount": 9,
+        "filled": 9,
+        "min_assessment": 75
+      },
+      {
+        "req_id": "REQ-02",
+        "role": "Frontend Engineer",
+        "headcount": 16,
+        "filled": 16,
+        "min_assessment": 75
+      },
+      {
+        "req_id": "REQ-03",
+        "role": "Full Stack Engineer",
+        "headcount": 11,
+        "filled": 11,
+        "min_assessment": 65
+      },
+      {
+        "req_id": "REQ-04",
+        "role": "Data Scientist",
+        "headcount": 14,
+        "filled": 14,
+        "min_assessment": 65
+      },
+      {
+        "req_id": "REQ-05",
+        "role": "ML Engineer",
+        "headcount": 10,
+        "filled": 10,
+        "min_assessment": 70
+      },
+      {
+        "req_id": "REQ-06",
+        "role": "Data Engineer",
+        "headcount": 10,
+        "filled": 10,
+        "min_assessment": 75
+      },
+      {
+        "req_id": "REQ-07",
+        "role": "DevOps / SRE",
+        "headcount": 11,
+        "filled": 11,
+        "min_assessment": 65
+      },
+      {
+        "req_id": "REQ-08",
+        "role": "Mobile Engineer",
+        "headcount": 11,
+        "filled": 11,
+        "min_assessment": 65
+      },
+      {
+        "req_id": "REQ-09",
+        "role": "QA Automation Engineer",
+        "headcount": 14,
+        "filled": 14,
+        "min_assessment": 70
+      },
+      {
+        "req_id": "REQ-10",
+        "role": "Product Analyst",
+        "headcount": 10,
+        "filled": 10,
+        "min_assessment": 75
+      }
+    ]
+  },
+  "counts": {
+    "signed_events": 118,
+    "upgraded_events": 70,
+    "assess_rejected_events": 210,
+    "restock_events": 274,
+    "crash_caught_events": 1,
+    "offer_rejected_events": 1,
+    "upgrade_offer_rejected_events": 2
+  },
+  "phase_changes": [
+    {
+      "t": "15:15:05",
+      "event": "phase_change",
+      "phase": "market",
+      "credits_remaining": 50000,
+      "score": 0,
+      "points": 0
+    },
+    {
+      "t": "15:38:25",
+      "event": "phase_change",
+      "phase": "closing",
+      "credits_remaining": 37965,
+      "score": 440.25,
+      "points": 1042
+    },
+    {
+      "t": "15:53:51",
+      "event": "phase_change",
+      "phase": "closing",
+      "credits_remaining": 37959,
+      "score": 439.95,
+      "points": 1042
+    }
+  ],
+  "points_calibrated": [
+    {
+      "t": "15:30:08",
+      "event": "points_calibrated",
+      "points": 1042,
+      "counted_hires": 116,
+      "points_per_hire": 8.98,
+      "was": 10
+    },
+    {
+      "t": "15:45:05",
+      "event": "points_calibrated",
+      "points": 1042,
+      "counted_hires": 116,
+      "points_per_hire": 8.98,
+      "was": 8.98
+    }
+  ],
+  "starts": [
+    {
+      "t": "15:15:05",
+      "event": "start",
+      "url": "https://innov8-battle-arena.onrender.com",
+      "penalty_factor": 0.05,
+      "points_per_hire": 10,
+      "assess_always": true,
+      "restored_signed": 0,
+      "restored_dead": 0
+    },
+    {
+      "t": "15:53:50",
+      "event": "start",
+      "url": "https://innov8-battle-arena.onrender.com",
+      "penalty_factor": 0.05,
+      "points_per_hire": 10,
+      "assess_always": true,
+      "restored_signed": 116,
+      "restored_dead": 2804
+    }
+  ],
+  "crash_caught": [
+    {
+      "t": "15:41:04",
+      "event": "crash_caught",
+      "trace": "Traceback (most recent call last):\n  File \"C:\\Users\\harsh\\Desktop\\HARSH\\WEB-DEV-PROJECTS\\iitd-hack\\parakh-iitd-hack\\arena\\agent.py\", line 602, in run\n    reqs = extract_list(self.arena.requisitions())\n                        ~~~~~~~~~~~~~~~~~~~~~~~^^\n  File \"C:\\Users\\harsh\\Desktop\\HARSH\\WEB-DEV-PROJECTS\\iitd-hack\\parakh-iitd-hack\\arena\\arena_client.py\", line 73, in requisitions\n    def requisitions(self):                 return self._call(\"/requisitions\")\n                                                   ~~~~~~~~~~^^^^^^^^^^^^^^^^^\n  File \"C:\\Users\\harsh\\Desktop\\HARSH\\WEB-DEV-PROJECTS\\iitd-hack\\parakh-iitd-hack\\arena\\arena_client.py\", line 70, in _call\n    raise RuntimeError(f\"gave up on {path}\")\nRuntimeError: gave up on /requisitions\n"
+    }
+  ],
+  "heartbeats": [
+    {
+      "t": "15:18:02",
+      "phase": "market",
+      "credits_remaining": 37973,
+      "points": 0,
+      "score": 0,
+      "swaps": 0
+    },
+    {
+      "t": "15:20:15",
+      "phase": "market",
+      "credits_remaining": 37973,
+      "points": 0,
+      "score": -601.35,
+      "swaps": 0
+    },
+    {
+      "t": "15:22:21",
+      "phase": "market",
+      "credits_remaining": 37973,
+      "points": 0,
+      "score": -601.35,
+      "swaps": 0
+    },
+    {
+      "t": "15:24:26",
+      "phase": "market",
+      "credits_remaining": 37971,
+      "points": 0,
+      "score": -601.45,
+      "swaps": 0
+    },
+    {
+      "t": "15:26:30",
+      "phase": "market",
+      "credits_remaining": 37971,
+      "points": 0,
+      "score": -601.45,
+      "swaps": 0
+    },
+    {
+      "t": "15:28:37",
+      "phase": "market",
+      "credits_remaining": 37969,
+      "points": 0,
+      "score": -601.55,
+      "swaps": 0
+    },
+    {
+      "t": "15:30:49",
+      "phase": "market",
+      "credits_remaining": 37969,
+      "points": 1042,
+      "score": 440.45,
+      "swaps": 0
+    },
+    {
+      "t": "15:32:56",
+      "phase": "market",
+      "credits_remaining": 37969,
+      "points": 1042,
+      "score": 440.45,
+      "swaps": 0
+    },
+    {
+      "t": "15:35:04",
+      "phase": "market",
+      "credits_remaining": 37967,
+      "points": 1042,
+      "score": 440.35,
+      "swaps": 0
+    },
+    {
+      "t": "15:37:12",
+      "phase": "market",
+      "credits_remaining": 37967,
+      "points": 1042,
+      "score": 440.35,
+      "swaps": 0
+    },
+    {
+      "t": "15:39:23",
+      "phase": "closing",
+      "credits_remaining": 37965,
+      "points": 1042,
+      "score": 440.25,
+      "swaps": 0
+    },
+    {
+      "t": "15:41:30",
+      "phase": "closing",
+      "credits_remaining": 37965,
+      "points": 1042,
+      "score": 440.25,
+      "swaps": 0
+    },
+    {
+      "t": "15:43:37",
+      "phase": "closing",
+      "credits_remaining": 37963,
+      "points": 1042,
+      "score": 440.15,
+      "swaps": 0
+    },
+    {
+      "t": "15:45:38",
+      "phase": "closing",
+      "credits_remaining": 37963,
+      "points": 1042,
+      "score": 440.15,
+      "swaps": 0
+    },
+    {
+      "t": "15:47:39",
+      "phase": "closing",
+      "credits_remaining": 37963,
+      "points": 1042,
+      "score": 440.15,
+      "swaps": 0
+    },
+    {
+      "t": "15:49:44",
+      "phase": "closing",
+      "credits_remaining": 37961,
+      "points": 1042,
+      "score": 440.05,
+      "swaps": 0
+    },
+    {
+      "t": "15:51:53",
+      "phase": "closing",
+      "credits_remaining": 37961,
+      "points": 1042,
+      "score": 440.05,
+      "swaps": 0
+    },
+    {
+      "t": "15:54:57",
+      "phase": "closing",
+      "credits_remaining": 35807,
+      "points": 1042,
+      "score": 439.95,
+      "swaps": 5
+    },
+    {
+      "t": "15:57:06",
+      "phase": "closing",
+      "credits_remaining": 24217,
+      "points": 1042,
+      "score": -183.4,
+      "swaps": 65
+    },
+    {
+      "t": "15:59:14",
+      "phase": "closing",
+      "credits_remaining": 18997,
+      "points": 1042,
+      "score": -472.15,
+      "swaps": 70
+    }
+  ],
+  "market_samples": [
+    {
+      "t": "15:18:02",
+      "phase": "market",
+      "your_rank": 48,
+      "leader_score": 1827.3,
+      "total_signed": 3311
+    },
+    {
+      "t": "15:54:57",
+      "phase": "closing",
+      "your_rank": 18,
+      "leader_score": 1827.3,
+      "total_signed": 3358
+    }
+  ],
+  "assess_reject_reasons": {
+    "below_bar": 142,
+    "reference_check": 68
+  },
+  "restock_reject_totals": {
+    "claimed": 2111,
+    "below_bar": 5624,
+    "ctc": 334,
+    "notice": 1223
+  },
+  "upgrades": [
+    {
+      "t": "15:54:04",
+      "cid": "NG-0718500",
+      "req": "REQ-01",
+      "quality": 0.702,
+      "old_cid": "NG-0231626",
+      "old_quality": 0.267,
+      "swaps": 1,
+      "assessment": 90,
+      "credits_remaining": 37769
+    },
+    {
+      "t": "15:54:17",
+      "cid": "NG-0614550",
+      "req": "REQ-03",
+      "quality": 0.731,
+      "old_cid": "NG-0201870",
+      "old_quality": 0.456,
+      "swaps": 2,
+      "assessment": 90,
+      "credits_remaining": 37374
+    },
+    {
+      "t": "15:54:19",
+      "cid": "NG-0953701",
+      "req": "REQ-03",
+      "quality": 0.779,
+      "old_cid": "NG-0205134",
+      "old_quality": 0.457,
+      "swaps": 3,
+      "assessment": 93,
+      "credits_remaining": 37239
+    },
+    {
+      "t": "15:54:19",
+      "cid": "NG-0776431",
+      "req": "REQ-03",
+      "quality": 0.759,
+      "old_cid": "NG-0139860",
+      "old_quality": 0.476,
+      "swaps": 4,
+      "assessment": 83,
+      "credits_remaining": 37189
+    },
+    {
+      "t": "15:54:41",
+      "cid": "NG-0714670",
+      "req": "REQ-07",
+      "quality": 0.839,
+      "old_cid": "NG-0112583",
+      "old_quality": 0.448,
+      "swaps": 5,
+      "assessment": 99,
+      "credits_remaining": 36379
+    },
+    {
+      "t": "15:55:10",
+      "cid": "NG-0840199",
+      "req": "REQ-01",
+      "quality": 0.608,
+      "old_cid": "NG-0147267",
+      "old_quality": 0.355,
+      "swaps": 6,
+      "assessment": 83,
+      "credits_remaining": 35272
+    },
+    {
+      "t": "15:55:13",
+      "cid": "NG-0545130",
+      "req": "REQ-03",
+      "quality": 0.763,
+      "old_cid": "NG-0101146",
+      "old_quality": 0.48,
+      "swaps": 7,
+      "assessment": 90,
+      "credits_remaining": 35017
+    },
+    {
+      "t": "15:55:17",
+      "cid": "NG-0926084",
+      "req": "REQ-08",
+      "quality": 0.85,
+      "old_cid": "NG-0130547",
+      "old_quality": 0.322,
+      "swaps": 8,
+      "assessment": 92,
+      "credits_remaining": 34277
+    },
+    {
+      "t": "15:55:18",
+      "cid": "NG-1129629",
+      "req": "REQ-08",
+      "quality": 0.731,
+      "old_cid": "NG-0087688",
+      "old_quality": 0.404,
+      "swaps": 9,
+      "assessment": 82,
+      "credits_remaining": 34117
+    },
+    {
+      "t": "15:55:19",
+      "cid": "NG-0328071",
+      "req": "REQ-09",
+      "quality": 0.618,
+      "old_cid": "NG-0090860",
+      "old_quality": 0.348,
+      "swaps": 10,
+      "assessment": 77,
+      "credits_remaining": 33897
+    },
+    {
+      "t": "15:55:30",
+      "cid": "NG-0660382",
+      "req": "REQ-01",
+      "quality": 0.774,
+      "old_cid": "NG-0026751",
+      "old_quality": 0.383,
+      "swaps": 11,
+      "assessment": 92,
+      "credits_remaining": 33607
+    },
+    {
+      "t": "15:55:31",
+      "cid": "NG-0667787",
+      "req": "REQ-01",
+      "quality": 0.649,
+      "old_cid": "NG-0135094",
+      "old_quality": 0.386,
+      "swaps": 12,
+      "assessment": 87,
+      "credits_remaining": 33557
+    },
+    {
+      "t": "15:55:32",
+      "cid": "NG-0671205",
+      "req": "REQ-03",
+      "quality": 0.753,
+      "old_cid": "NG-0185257",
+      "old_quality": 0.493,
+      "swaps": 13,
+      "assessment": 97,
+      "credits_remaining": 33327
+    },
+    {
+      "t": "15:55:33",
+      "cid": "NG-0460295",
+      "req": "REQ-04",
+      "quality": 0.703,
+      "old_cid": "NG-0177411",
+      "old_quality": 0.403,
+      "swaps": 14,
+      "assessment": 95,
+      "credits_remaining": 33132
+    },
+    {
+      "t": "15:55:34",
+      "cid": "NG-0519491",
+      "req": "REQ-04",
+      "quality": 0.711,
+      "old_cid": "NG-0111775",
+      "old_quality": 0.405,
+      "swaps": 15,
+      "assessment": 93,
+      "credits_remaining": 33082
+    },
+    {
+      "t": "15:55:34",
+      "cid": "NG-0695149",
+      "req": "REQ-04",
+      "quality": 0.807,
+      "old_cid": "NG-0195767",
+      "old_quality": 0.423,
+      "swaps": 16,
+      "assessment": 100,
+      "credits_remaining": 32972
+    },
+    {
+      "t": "15:55:35",
+      "cid": "NG-0630871",
+      "req": "REQ-04",
+      "quality": 0.728,
+      "old_cid": "NG-0160027",
+      "old_quality": 0.434,
+      "swaps": 17,
+      "assessment": 95,
+      "credits_remaining": 32922
+    },
+    {
+      "t": "15:55:36",
+      "cid": "NG-0607955",
+      "req": "REQ-05",
+      "quality": 0.751,
+      "old_cid": "NG-0117524",
+      "old_quality": 0.361,
+      "swaps": 18,
+      "assessment": 100,
+      "credits_remaining": 32727
+    },
+    {
+      "t": "15:55:36",
+      "cid": "NG-0576220",
+      "req": "REQ-05",
+      "quality": 0.626,
+      "old_cid": "NG-0169183",
+      "old_quality": 0.369,
+      "swaps": 19,
+      "assessment": 80,
+      "credits_remaining": 32677
+    },
+    {
+      "t": "15:55:37",
+      "cid": "NG-0451002",
+      "req": "REQ-06",
+      "quality": 0.727,
+      "old_cid": "NG-0098466",
+      "old_quality": 0.374,
+      "swaps": 20,
+      "assessment": 96,
+      "credits_remaining": 32507
+    },
+    {
+      "t": "15:55:38",
+      "cid": "NG-0495069",
+      "req": "REQ-07",
+      "quality": 0.719,
+      "old_cid": "NG-0012449",
+      "old_quality": 0.454,
+      "swaps": 21,
+      "assessment": 90,
+      "credits_remaining": 32322
+    },
+    {
+      "t": "15:55:39",
+      "cid": "NG-0624657",
+      "req": "REQ-07",
+      "quality": 0.869,
+      "old_cid": "NG-0107811",
+      "old_quality": 0.486,
+      "swaps": 22,
+      "assessment": 100,
+      "credits_remaining": 32212
+    },
+    {
+      "t": "15:55:40",
+      "cid": "NG-0565404",
+      "req": "REQ-08",
+      "quality": 0.699,
+      "old_cid": "NG-0027117",
+      "old_quality": 0.417,
+      "swaps": 23,
+      "assessment": 92,
+      "credits_remaining": 32017
+    },
+    {
+      "t": "15:55:41",
+      "cid": "NG-0593079",
+      "req": "REQ-09",
+      "quality": 0.639,
+      "old_cid": "NG-0088371",
+      "old_quality": 0.362,
+      "swaps": 24,
+      "assessment": 88,
+      "credits_remaining": 31822
+    },
+    {
+      "t": "15:55:53",
+      "cid": "NG-0709757",
+      "req": "REQ-01",
+      "quality": 0.694,
+      "old_cid": "NG-0063906",
+      "old_quality": 0.395,
+      "swaps": 25,
+      "assessment": 90,
+      "credits_remaining": 31592
+    },
+    {
+      "t": "15:55:54",
+      "cid": "NG-0874574",
+      "req": "REQ-01",
+      "quality": 0.844,
+      "old_cid": "NG-0194778",
+      "old_quality": 0.395,
+      "swaps": 26,
+      "assessment": 100,
+      "credits_remaining": 31482
+    },
+    {
+      "t": "15:55:55",
+      "cid": "NG-0951034",
+      "req": "REQ-02",
+      "quality": 0.733,
+      "old_cid": "NG-0294663",
+      "old_quality": 0.354,
+      "swaps": 27,
+      "assessment": 92,
+      "credits_remaining": 31287
+    },
+    {
+      "t": "15:55:57",
+      "cid": "NG-0747026",
+      "req": "REQ-04",
+      "quality": 0.83,
+      "old_cid": "NG-0121551",
+      "old_quality": 0.436,
+      "swaps": 28,
+      "assessment": 98,
+      "credits_remaining": 30982
+    },
+    {
+      "t": "15:55:57",
+      "cid": "NG-0849799",
+      "req": "REQ-04",
+      "quality": 0.767,
+      "old_cid": "NG-0109209",
+      "old_quality": 0.442,
+      "swaps": 29,
+      "assessment": 93,
+      "credits_remaining": 30932
+    },
+    {
+      "t": "15:55:58",
+      "cid": "NG-0857388",
+      "req": "REQ-04",
+      "quality": 0.712,
+      "old_cid": "NG-0175098",
+      "old_quality": 0.448,
+      "swaps": 30,
+      "assessment": 90,
+      "credits_remaining": 30882
+    },
+    {
+      "t": "15:55:58",
+      "cid": "NG-0976349",
+      "req": "REQ-04",
+      "quality": 0.862,
+      "old_cid": "NG-0168274",
+      "old_quality": 0.465,
+      "swaps": 31,
+      "assessment": 100,
+      "credits_remaining": 30772
+    },
+    {
+      "t": "15:55:59",
+      "cid": "NG-0770701",
+      "req": "REQ-05",
+      "quality": 0.769,
+      "old_cid": "NG-0124186",
+      "old_quality": 0.374,
+      "swaps": 32,
+      "assessment": 97,
+      "credits_remaining": 30612
+    },
+    {
+      "t": "15:56:00",
+      "cid": "NG-0695544",
+      "req": "REQ-05",
+      "quality": 0.692,
+      "old_cid": "NG-0128093",
+      "old_quality": 0.431,
+      "swaps": 33,
+      "assessment": 92,
+      "credits_remaining": 30512
+    },
+    {
+      "t": "15:56:02",
+      "cid": "NG-0913524",
+      "req": "REQ-07",
+      "quality": 0.769,
+      "old_cid": "NG-0215286",
+      "old_quality": 0.506,
+      "swaps": 34,
+      "assessment": 96,
+      "credits_remaining": 30087
+    },
+    {
+      "t": "15:56:03",
+      "cid": "NG-0805273",
+      "req": "REQ-08",
+      "quality": 0.743,
+      "old_cid": "NG-0126722",
+      "old_quality": 0.423,
+      "swaps": 35,
+      "assessment": 90,
+      "credits_remaining": 29842
+    },
+    {
+      "t": "15:56:04",
+      "cid": "NG-0779120",
+      "req": "REQ-08",
+      "quality": 0.766,
+      "old_cid": "NG-0143160",
+      "old_quality": 0.435,
+      "swaps": 36,
+      "assessment": 96,
+      "credits_remaining": 29767
+    },
+    {
+      "t": "15:56:05",
+      "cid": "NG-0711200",
+      "req": "REQ-09",
+      "quality": 0.713,
+      "old_cid": "NG-0210804",
+      "old_quality": 0.432,
+      "swaps": 37,
+      "assessment": 95,
+      "credits_remaining": 29632
+    },
+    {
+      "t": "15:56:05",
+      "cid": "NG-0921866",
+      "req": "REQ-09",
+      "quality": 0.788,
+      "old_cid": "NG-0199624",
+      "old_quality": 0.433,
+      "swaps": 38,
+      "assessment": 99,
+      "credits_remaining": 29522
+    },
+    {
+      "t": "15:56:06",
+      "cid": "NG-0636503",
+      "req": "REQ-10",
+      "quality": 0.716,
+      "old_cid": "NG-0106225",
+      "old_quality": 0.382,
+      "swaps": 39,
+      "assessment": 92,
+      "credits_remaining": 29387
+    },
+    {
+      "t": "15:56:07",
+      "cid": "NG-0711759",
+      "req": "REQ-10",
+      "quality": 0.75,
+      "old_cid": "NG-0083419",
+      "old_quality": 0.39,
+      "swaps": 40,
+      "assessment": 98,
+      "credits_remaining": 29337
+    },
+    {
+      "t": "15:56:07",
+      "cid": "NG-0662397",
+      "req": "REQ-10",
+      "quality": 0.678,
+      "old_cid": "NG-0008792",
+      "old_quality": 0.398,
+      "swaps": 41,
+      "assessment": 93,
+      "credits_remaining": 29287
+    },
+    {
+      "t": "15:56:08",
+      "cid": "NG-0726080",
+      "req": "REQ-10",
+      "quality": 0.78,
+      "old_cid": "NG-0079376",
+      "old_quality": 0.43,
+      "swaps": 42,
+      "assessment": 95,
+      "credits_remaining": 29177
+    },
+    {
+      "t": "15:56:08",
+      "cid": "NG-0891195",
+      "req": "REQ-10",
+      "quality": 0.734,
+      "old_cid": "NG-0078397",
+      "old_quality": 0.46,
+      "swaps": 43,
+      "assessment": 92,
+      "credits_remaining": 29127
+    },
+    {
+      "t": "15:56:19",
+      "cid": "NG-1056435",
+      "req": "REQ-01",
+      "quality": 0.668,
+      "old_cid": "NG-0231870",
+      "old_quality": 0.413,
+      "swaps": 44,
+      "assessment": 88,
+      "credits_remaining": 28992
+    },
+    {
+      "t": "15:56:20",
+      "cid": "NG-1163847",
+      "req": "REQ-01",
+      "quality": 0.769,
+      "old_cid": "NG-0104611",
+      "old_quality": 0.424,
+      "swaps": 45,
+      "assessment": 97,
+      "credits_remaining": 28882
+    },
+    {
+      "t": "15:56:21",
+      "cid": "NG-1129827",
+      "req": "REQ-02",
+      "quality": 0.624,
+      "old_cid": "NG-0049470",
+      "old_quality": 0.356,
+      "swaps": 46,
+      "assessment": 85,
+      "credits_remaining": 28722
+    },
+    {
+      "t": "15:56:23",
+      "cid": "NG-1222095",
+      "req": "REQ-04",
+      "quality": 0.752,
+      "old_cid": "NG-0081836",
+      "old_quality": 0.472,
+      "swaps": 47,
+      "assessment": 94,
+      "credits_remaining": 28297
+    },
+    {
+      "t": "15:56:23",
+      "cid": "NG-0874111",
+      "req": "REQ-05",
+      "quality": 0.719,
+      "old_cid": "NG-0152229",
+      "old_quality": 0.464,
+      "swaps": 48,
+      "assessment": 91,
+      "credits_remaining": 28247
+    },
+    {
+      "t": "15:56:24",
+      "cid": "NG-1038110",
+      "req": "REQ-05",
+      "quality": 0.8,
+      "old_cid": "NG-0156191",
+      "old_quality": 0.476,
+      "swaps": 49,
+      "assessment": 97,
+      "credits_remaining": 28137
+    },
+    {
+      "t": "15:56:25",
+      "cid": "NG-1129723",
+      "req": "REQ-05",
+      "quality": 0.834,
+      "old_cid": "NG-0169388",
+      "old_quality": 0.483,
+      "swaps": 50,
+      "assessment": 96,
+      "credits_remaining": 28002
+    },
+    {
+      "t": "15:56:26",
+      "cid": "NG-0851648",
+      "req": "REQ-06",
+      "quality": 0.651,
+      "old_cid": "NG-0018786",
+      "old_quality": 0.394,
+      "swaps": 51,
+      "assessment": 89,
+      "credits_remaining": 27892
+    },
+    {
+      "t": "15:56:26",
+      "cid": "NG-0965566",
+      "req": "REQ-06",
+      "quality": 0.867,
+      "old_cid": "NG-0022149",
+      "old_quality": 0.396,
+      "swaps": 52,
+      "assessment": 100,
+      "credits_remaining": 27782
+    },
+    {
+      "t": "15:56:27",
+      "cid": "NG-1051592",
+      "req": "REQ-06",
+      "quality": 0.835,
+      "old_cid": "NG-0134449",
+      "old_quality": 0.422,
+      "swaps": 53,
+      "assessment": 97,
+      "credits_remaining": 27732
+    },
+    {
+      "t": "15:56:28",
+      "cid": "NG-0954537",
+      "req": "REQ-07",
+      "quality": 0.834,
+      "old_cid": "NG-0160950",
+      "old_quality": 0.507,
+      "swaps": 54,
+      "assessment": 99,
+      "credits_remaining": 27597
+    },
+    {
+      "t": "15:56:28",
+      "cid": "NG-1201552",
+      "req": "REQ-07",
+      "quality": 0.821,
+      "old_cid": "NG-0184182",
+      "old_quality": 0.514,
+      "swaps": 55,
+      "assessment": 100,
+      "credits_remaining": 27487
+    },
+    {
+      "t": "15:56:29",
+      "cid": "NG-0872545",
+      "req": "REQ-08",
+      "quality": 0.779,
+      "old_cid": "NG-0088398",
+      "old_quality": 0.453,
+      "swaps": 56,
+      "assessment": 100,
+      "credits_remaining": 27352
+    },
+    {
+      "t": "15:56:30",
+      "cid": "NG-1034259",
+      "req": "REQ-08",
+      "quality": 0.786,
+      "old_cid": "NG-0197556",
+      "old_quality": 0.487,
+      "swaps": 57,
+      "assessment": 100,
+      "credits_remaining": 27167
+    },
+    {
+      "t": "15:56:43",
+      "cid": "NG-1383434",
+      "req": "REQ-02",
+      "quality": 0.662,
+      "old_cid": "NG-0138451",
+      "old_quality": 0.363,
+      "swaps": 58,
+      "assessment": 90,
+      "credits_remaining": 26642
+    },
+    {
+      "t": "15:56:43",
+      "cid": "NG-1380800",
+      "req": "REQ-02",
+      "quality": 0.755,
+      "old_cid": "NG-0222197",
+      "old_quality": 0.371,
+      "swaps": 59,
+      "assessment": 99,
+      "credits_remaining": 26592
+    },
+    {
+      "t": "15:56:44",
+      "cid": "NG-1428000",
+      "req": "REQ-02",
+      "quality": 0.732,
+      "old_cid": "NG-0156333",
+      "old_quality": 0.397,
+      "swaps": 60,
+      "assessment": 92,
+      "credits_remaining": 26517
+    },
+    {
+      "t": "15:56:47",
+      "cid": "NG-1089539",
+      "req": "REQ-06",
+      "quality": 0.719,
+      "old_cid": "NG-0131911",
+      "old_quality": 0.443,
+      "swaps": 61,
+      "assessment": 92,
+      "credits_remaining": 25937
+    },
+    {
+      "t": "15:57:02",
+      "cid": "NG-0680128",
+      "req": "REQ-03",
+      "quality": 0.79,
+      "old_cid": "NG-0126071",
+      "old_quality": 0.502,
+      "swaps": 62,
+      "assessment": 99,
+      "credits_remaining": 25237
+    },
+    {
+      "t": "15:57:04",
+      "cid": "NG-0515690",
+      "req": "REQ-06",
+      "quality": 0.716,
+      "old_cid": "NG-0115013",
+      "old_quality": 0.461,
+      "swaps": 63,
+      "assessment": 98,
+      "credits_remaining": 24777
+    },
+    {
+      "t": "15:57:05",
+      "cid": "NG-0565286",
+      "req": "REQ-08",
+      "quality": 0.76,
+      "old_cid": "NG-0098197",
+      "old_quality": 0.5,
+      "swaps": 64,
+      "assessment": 94,
+      "credits_remaining": 24582
+    },
+    {
+      "t": "15:57:06",
+      "cid": "NG-0535749",
+      "req": "REQ-10",
+      "quality": 0.729,
+      "old_cid": "NG-0081275",
+      "old_quality": 0.472,
+      "swaps": 65,
+      "assessment": 92,
+      "credits_remaining": 24302
+    },
+    {
+      "t": "15:57:19",
+      "cid": "NG-0722353",
+      "req": "REQ-06",
+      "quality": 0.791,
+      "old_cid": "NG-0164500",
+      "old_quality": 0.462,
+      "swaps": 66,
+      "assessment": 100,
+      "credits_remaining": 23612
+    },
+    {
+      "t": "15:57:35",
+      "cid": "NG-1068113",
+      "req": "REQ-09",
+      "quality": 0.764,
+      "old_cid": "NG-0185213",
+      "old_quality": 0.44,
+      "swaps": 67,
+      "assessment": 99,
+      "credits_remaining": 22392
+    },
+    {
+      "t": "15:57:47",
+      "cid": "NG-1408085",
+      "req": "REQ-02",
+      "quality": 0.658,
+      "old_cid": "NG-0232314",
+      "old_quality": 0.402,
+      "swaps": 68,
+      "assessment": 91,
+      "credits_remaining": 22002
+    },
+    {
+      "t": "15:57:49",
+      "cid": "NG-1209606",
+      "req": "REQ-05",
+      "quality": 0.771,
+      "old_cid": "NG-0194999",
+      "old_quality": 0.497,
+      "swaps": 69,
+      "assessment": 99,
+      "credits_remaining": 21712
+    },
+    {
+      "t": "15:57:51",
+      "cid": "NG-1084317",
+      "req": "REQ-10",
+      "quality": 0.755,
+      "old_cid": "NG-0233990",
+      "old_quality": 0.502,
+      "swaps": 70,
+      "assessment": 100,
+      "credits_remaining": 21242
+    }
+  ],
+  "examples": {
+    "signed": {
+      "t": "15:15:08",
+      "event": "signed",
+      "cid": "NG-0160554",
+      "req": "REQ-02",
+      "quality": 0.507,
+      "conf": 0.7999999999999999,
+      "est_points": 7.54,
+      "ev": 5.53,
+      "verified": true,
+      "already_yours": false,
+      "detail": {
+        "src": "verified",
+        "assessment": 83,
+        "self_reported": 77,
+        "margin_pts": 8,
+        "skill": 0.83,
+        "notice": 60,
+        "ctc": 5.6,
+        "sentiment": -1
+      },
+      "credits_remaining": 49765
+    },
+    "upgrade": {
+      "t": "15:54:04",
+      "cid": "NG-0718500",
+      "req": "REQ-01",
+      "quality": 0.702,
+      "old_cid": "NG-0231626",
+      "old_quality": 0.267,
+      "swaps": 1,
+      "assessment": 90,
+      "credits_remaining": 37769
+    },
+    "reference_check_reject": {
+      "t": "15:15:08",
+      "event": "assess_rejected",
+      "cid": "NG-0125791",
+      "req": "REQ-02",
+      "why": "reference_check",
+      "sample": "{\"candidate_id\": \"NG-0125791\", \"verified_assessment\": 37, \"reference_check\": \"could not verify employment\", \"identity_verified\": false}"
+    },
+    "below_bar_reject": {
+      "t": "15:15:08",
+      "event": "assess_rejected",
+      "cid": "NG-0202304",
+      "req": "REQ-02",
+      "why": "below_bar 73<75"
+    }
+  }
+}

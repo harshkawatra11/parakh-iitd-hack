@@ -22,6 +22,16 @@ export default function Home() {
         <Ledger />
         <Validation />
         <Method />
+        <div className="border-b border-rule py-8">
+          <div className="mx-auto w-full max-w-6xl px-4 md:px-8">
+            <a
+              href="/arena"
+              className="font-mono text-[11px] uppercase tracking-wide text-ink-3 hover:text-seal"
+            >
+              Round 2 · The Battle Arena, live console →
+            </a>
+          </div>
+        </div>
       </main>
       <Colophon />
     </>

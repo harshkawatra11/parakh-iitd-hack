@@ -286,6 +286,16 @@ Every threshold, every school on the old-boys' list, every recall number in this
 
 ---
 
+## Round 2: The Battle Arena
+
+Round one was a shortlist problem against a static CSV with no clock and no rivals. Round two, the Battle Arena, is Innov8 4.0's live finale: a six-hour real-time market against 51 competing teams, a shared pool of 20,000-plus candidate profiles, ten open requisitions worth 116 total seats, a 50,000-credit budget, and a scoring formula that charges 0.05 points for every credit spent. Team IdeaForge's agent reused Parakh's forensic layer (the same age-at-graduation and experience-vs-career-history checks, now run against the live API's `verified_assessment` and `reference_check` fields), filled all 116 requisition slots within three minutes of the market opening, then spent the closing hour building and running an upgrade engine that swapped 70 verified, higher-quality hires into slots held by weaker ones, taking the team from rank 48 of 51 to rank 18 of 51.
+
+Three real numbers, read straight from the agent's own decision log: **116 / 116** requisitions filled, **70** verified upgrade swaps executed in under four minutes, and a measured **8.98 points per hire**, calibrated on the fly because the arena never published that number.
+
+The full story, with the real architecture diagrams, the live ledger numbers, and an honest account of what did not work, is in [`arena/ARENA_README.md`](arena/ARENA_README.md). The Battle Arena console is live at [`/arena`](https://parakh-ideaforge.vercel.app/arena) on the same deployment as the round one console above.
+
+---
+
 ## Repository layout
 
 ```
